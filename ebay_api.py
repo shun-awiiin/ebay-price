@@ -54,7 +54,9 @@ def get_user_token(auth_code):
         raise
 
 
-def get_seller_list(user_token, entries_per_page=100, page_number=1):
+def get_seller_list(
+    user_token, filter_options=None, entries_per_page=100, page_number=1
+):
     """
     eBayの販売リストを取得します。
     """
@@ -75,6 +77,22 @@ def get_seller_list(user_token, entries_per_page=100, page_number=1):
         "StartTimeFrom": end_time_from.strftime("%Y-%m-%dT%H:%M:%S"),
         "StartTimeTo": end_time_to.strftime("%Y-%m-%dT%H:%M:%S"),
     }
+    # フィルターオプションをリクエストに追加
+    if filter_options:
+        if "min_price" in filter_options:
+            request["MinPrice"] = filter_options["min_price"]
+        if "max_price" in filter_options:
+            request["MaxPrice"] = filter_options["max_price"]
+        if "category" in filter_options:
+            request["CategoryID"] = filter_options["category"]
+        if "start_time_from" in filter_options:
+            request["StartTimeFrom"] = filter_options["start_time_from"]
+        if "start_time_to" in filter_options:
+            request["StartTimeTo"] = filter_options["start_time_to"]
+        if "end_time_from" in filter_options:
+            request["EndTimeFrom"] = filter_options["end_time_from"]
+        if "end_time_to" in filter_options:
+            request["EndTimeTo"] = filter_options["end_time_to"]
 
     response = api.execute("GetSellerList", request)
     return response.dict()
@@ -102,3 +120,25 @@ def extract_active_listings(seller_list):
             )
 
     return active_items
+
+
+def revise_item_price(user_token, item_id, new_price):
+    api = Trading(
+        domain="api.ebay.com",
+        config_file=None,
+        appid=app_id,
+        devid=dev_id,
+        certid=cert_id,
+        token=user_token,
+        siteid="0",
+    )
+
+    request = {
+        "Item": {
+            "ItemID": item_id,
+            "StartPrice": new_price,
+        }
+    }
+
+    response = api.execute("ReviseItem", request)
+    return response.dict()

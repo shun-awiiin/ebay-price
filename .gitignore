@@ -9990,3 +9990,6 @@ google-cloud-sdk/lib/surface/immersive_stream/xr/contents/create.yaml
 google-cloud-sdk/lib/surface/immersive_stream/xr/contents/delete.yaml
 google-cloud-sdk/lib/surface/immersive_stream/xr/contents/describe.yaml
 google-cloud-sdk/lib/surface/immersive_stream/xr/contents/list.yaml
+
+__pycache__/
+*.pyc

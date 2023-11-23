@@ -4,31 +4,148 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Active Listings</title>
-    <!-- Bootstrap CSSのリンクなど、追加のスタイルシート -->
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </head>
 <body>
     <div class="container">
         <h1>Active Listings</h1>
-        {% if listings %}
-            <div class="list-group">
-                {% for item in listings %}
-                    <a href="#" class="list-group-item list-group-item-action flex-column align-items-start">
-                        <div class="d-flex w-100 justify-content-between">
-                            <h5 class="mb-1">{{ item.Title }}</h5>
-                            <small>Item ID: {{ item['Item ID'] }}</small>
-                        </div>
-                        <p class="mb-1">Current Price: {{ item['Current Price'] }}</p>
-                    </a>
-                {% endfor %}
+        <!-- フィルタリングフォーム -->
+        <div class="filter-form mb-4">
+            <h2>Filter Listings</h2>
+            <form action="{{ url_for('active_listings') }}" method="post">
+                <div class="form-row">
+                    <div class="col">
+                        <input type="number" class="form-control" name="min_price" placeholder="Minimum Price">
+                    </div>
+                    <div class="col">
+                        <input type="number" class="form-control" name="max_price" placeholder="Maximum Price">
+                    </div>
+                    <div class="col">
+                        <input type="text" class="form-control" name="category" placeholder="Category">
+                    </div>
+                </div>
+                <div class="form-row mt-3">
+                    <div class="col">
+                        <input type="datetime-local" class="form-control" name="start_time_from" placeholder="Start Time From">
+                    </div>
+                    <div class="col">
+                        <input type="datetime-local" class="form-control" name="start_time_to" placeholder="Start Time To">
+                    </div>
+                    <div class="col">
+                        <button type="submit" class="btn btn-primary">Apply Filters</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+
+
+        <!-- リスト表示 -->
+        <div class="row">
+            {% for item in listings %}
+            <div class="col-md-4 mb-3">
+                <div class="card">
+                    <!-- ここで商品の画像を表示 -->
+                    <img src="{{ item.ImageURL }}" class="card-img-top" alt="{{ item.Title }}">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ item.Title }}</h5>
+                        <p class="card-text">$ {{ item['Current Price'] }}</p>
+                        <button class="btn btn-primary" data-item-id="{{ item['Item ID'] }}" data-current-price="{{ item['Current Price'] }}" onclick="openModal(this)">Update Price</button>
+                    </div>
+                </div>
             </div>
-        {% else %}
-            <p>No active listings found.</p>
-        {% endif %}
+            {% endfor %}
+        </div>
     </div>
-    <!-- Bootstrap JavaScriptのリンクなど、追加のスクリプト -->
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <!-- モーダルウィンドウ -->
+    <div class="modal fade" id="priceUpdateModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Update Price</h5>
+                    <button type="button" class="close" data-dismiss="modal">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="priceUpdateForm">
+                        <input type="hidden" id="modalItemId" name="item_id">
+                        <div class="form-group">
+                            <label for="newPrice">New Price</label>
+                            <input type="number" class="form-control" id="newPrice" name="new_price" step="0.01">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Update</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // openModal関数の定義
+function openModal(button) {
+    var itemId = button.getAttribute('data-item-id');
+    var currentPrice = button.getAttribute('data-current-price');
+
+    // モーダルウィンドウの要素に値をセット
+    $('#modalItemId').val(itemId);
+    $('#newPrice').val(currentPrice);
+
+    // モーダルウィンドウを表示
+    $('#priceUpdateModal').modal('show');
+}
+
+// Ajaxリクエストの定義
+$(document).ready(function() {
+    $('#priceUpdateForm').submit(function(e) {
+        e.preventDefault();
+
+        var itemId = $('#modalItemId').val();
+        var newPrice = $('#newPrice').val();
+
+        // 価格のバリデーション
+        if (!isPriceValid(newPrice)) {
+            alert('Please enter a valid price (up to two decimal places).');
+            return;
+        }
+
+        // Ajaxリクエストの送信
+        $.ajax({
+            url: '/revise-price',
+            type: 'POST',
+            data: {item_id: itemId, new_price: newPrice},
+            success: function(response) {
+                // 成功時の処理
+                $('#priceUpdateModal').modal('hide');
+                updateListing(itemId, newPrice);
+            },
+            error: function(response) {
+                // エラー時の処理
+                alert('Error updating price.');
+            }
+        });
+    });
+});
+
+// 価格バリデーション関数
+function isPriceValid(price) {
+    return /^\d+(\.\d{1,2})?$/.test(price);
+}
+
+// リスト更新関数
+function updateListing(itemId, newPrice) {
+    // 対象のリストアイテムを見つけて価格を更新
+    $(".card").each(function() {
+        var itemCard = $(this);
+        if (itemCard.data("item-id") === itemId) {
+            itemCard.find(".card-text").text("$ " + newPrice);
+        }
+    });
+}
+    </script>
 </body>
 </html>
