@@ -4,6 +4,7 @@ from requests.auth import HTTPBasicAuth
 from ebaysdk.trading import Connection as Trading
 from ebaysdk.exception import ConnectionError
 import json
+import xml.etree.ElementTree as ET
 
 # eBayのAPIキー
 
@@ -11,12 +12,20 @@ app_id = "shunkiku-tooltest-PRD-690cb6562-fcc8791f"
 dev_id = "8480f8f3-218c-48ff-bd22-0a6787809783"
 cert_id = "PRD-ac3fefa98a56-06a1-4e54-9fbd-fd7b"
 
-print("App ID:", app_id)
-print("Dev ID:", dev_id)
-print("Cert ID:", cert_id)
+
+def initialize_ebay_api(app_id, dev_id, cert_id, token):
+    """
+    Initialize the eBay Trading API.
+    """
+    return Trading(
+        appid=app_id, devid=dev_id, certid=cert_id, token=token, config_file=None
+    )
 
 
 def get_new_oauth_token(app_id, cert_id):
+    """
+    Obtain a new OAuth token.
+    """
     url = "https://api.ebay.com/identity/v1/oauth2/token"
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -24,110 +33,124 @@ def get_new_oauth_token(app_id, cert_id):
     }
     data = {
         "grant_type": "client_credentials",
-        "scope": "https://api.ebay.com/oauth/api_scope",  # または必要なスコープに応じて調整
+        "scope": "https://api.ebay.com/oauth/api_scope",
     }
-    response = requests.post(
-        url, headers=headers, data=data, auth=HTTPBasicAuth(app_id, cert_id)
-    )
-
-    if response.status_code == 200:
-        return json.loads(response.text)["access_token"]
-    else:
-        raise Exception("Failed to get new OAuth token")
-
-
-# 新しいトークンの取得
-new_token = get_new_oauth_token(app_id, cert_id)
-
-print("New token:", new_token)
-
-
-def save_price_data(data, filename="price_data.json"):
-    with open(filename, "w") as file:
-        json.dump(data, file)
-
-
-def load_price_data(filename="price_data.json"):
     try:
-        with open(filename, "r") as file:
-            return json.load(file)
-    except FileNotFoundError:
-        return {}
+        response = requests.post(
+            url, headers=headers, data=data, auth=HTTPBasicAuth(app_id, cert_id)
+        )
+        response.raise_for_status()
+        return json.loads(response.text)["access_token"]
+    except requests.RequestException as e:
+        raise ConnectionError("Failed to get new OAuth token: " + str(e))
 
 
-# eBay APIの初期化
-api = Trading(
-    appid=app_id, devid=dev_id, certid=cert_id, token=new_token, config_file=None
-)
-
-print("API:", api)
-
-response = api.execute(
-    "GetMyeBaySelling", {"ActiveList": True, "DetailLevel": "ReturnAll"}
-)
-
-print("Response:", response.dict())
+token = get_new_oauth_token(app_id, cert_id)
+print(token)
 
 
-def fetch_current_listings(api):
-    app_id = "shunkiku-tooltest-PRD-690cb6562-fcc8791f"
-    dev_id = "8480f8f3-218c-48ff-bd22-0a6787809783"
-    cert_id = "PRD-ac3fefa98a56-06a1-4e54-9fbd-fd7b"
-
-    api = Trading(
-        appid=app_id,
-        devid=dev_id,
-        certid=cert_id,
-        token=new_token,
-        config_file=None,
+def fetch_current_listings(token):
+    """
+    Fetch current listings from eBay.
+    """
+    url = "https://api.ebay.com/ws/api.dll"
+    headers = {
+        "Content-Type": "text/xml",
+        "X-EBAY-API-SITEID": "0",
+        "X-EBAY-API-COMPATIBILITY-LEVEL": "967",
+        "X-EBAY-API-CALL-NAME": "GetMyeBaySelling",
+        "Authorization": f"Bearer {token}",
+    }
+    body = """<?xml version="1.0" encoding="utf-8"?>
+    <GetMyeBaySellingRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+        <RequesterCredentials>
+            <eBayAuthToken>{}</eBayAuthToken>
+        </RequesterCredentials>
+        <ActiveList>
+            <Include>true</Include>
+        </ActiveList>
+    </GetMyeBaySellingRequest>""".format(
+        token
     )
-    response = api.execute(
-        "GetMyeBaySelling", {"ActiveList": True, "DetailLevel": "ReturnAll"}
+
+    response = requests.post(url, headers=headers, data=body)
+    response.raise_for_status()
+
+    # 解析するXMLを取得
+    root = ET.fromstring(response.content)
+
+    # 応答から必要なデータを抽出
+    items = []
+    for item in root.findall(".//Item"):
+        item_id = item.find("ItemID").text
+        current_price = float(item.find("SellingStatus/CurrentPrice").text)
+        items.append({"ItemID": item_id, "CurrentPrice": current_price})
+
+    return items
+
+
+# 現在のリストの取得
+listings = fetch_current_listings(token)
+print(listings)
+
+
+def update_price(token, item_id, new_price):
+    """
+    Update the price of a listed item using a direct HTTP request.
+    """
+    url = "https://api.ebay.com/ws/api.dll"
+    headers = {
+        "Content-Type": "text/xml",
+        "X-EBAY-API-SITEID": "0",
+        "X-EBAY-API-COMPATIBILITY-LEVEL": "967",
+        "X-EBAY-API-CALL-NAME": "ReviseItem",
+        "Authorization": f"Bearer {token}",
+    }
+    body = """<?xml version="1.0" encoding="utf-8"?>
+    <ReviseItemRequest xmlns="urn:ebay:apis:eBLBaseComponents">
+        <RequesterCredentials>
+            <eBayAuthToken>{}</eBayAuthToken>
+        </RequesterCredentials>
+        <Item>
+            <ItemID>{}</ItemID>
+            <StartPrice>{}</StartPrice>
+        </Item>
+    </ReviseItemRequest>""".format(
+        token, item_id, new_price
     )
-    if response.reply.Ack == "Success" and hasattr(response.reply, "ActiveList"):
-        return response.reply.ActiveList.ItemArray.Item
-    else:
-        return None
+    response = requests.post(url, headers=headers, data=body)
+    response.raise_for_status()
+
+    # 応答の解析
+    root = ET.fromstring(response.content)
+
+    # 成功したかどうかを確認
+    if root.find(".//Ack").text != "Success":
+        raise Exception(f"Failed to update price for Item ID: {item_id}")
+    try:
+        response = requests.post(url, headers=headers, data=body)
+        response.raise_for_status()
+        # 応答の解析と成功確認が必要
+    except requests.RequestException as e:
+        print(f"Error in updating price for Item ID {item_id}: {e}")
 
 
-def update_price(api, item_id, current_price):
-    new_price = current_price - 1  # 1ドル減額
-    response = api.execute(
-        "ReviseItem", {"Item": {"ItemID": item_id, "StartPrice": new_price}}
-    )
-    if response.reply.Ack == "Success" and hasattr(response.reply, "ActiveList"):
-        return response.reply.ActiveList.ItemArray.Item
-    else:
-        return None
+def main():
+    """
+    Main function to execute the eBay price updating logic.
+    """
+    token = get_new_oauth_token(app_id, cert_id)
+    current_listings = fetch_current_listings(
+        token
+    )  # fetch_current_listingsは直接リクエストに基づいていると仮定
+
+    if current_listings:
+        for item in current_listings:
+            item_id = item["ItemID"]  # 応答の形式に応じて変更
+            current_price = float(item["CurrentPrice"])  # 応答の形式に応じて変更
+            new_price = max(current_price - 1, 1)  # Ensure price doesn't go below 1
+            update_price(token, item_id, new_price)
 
 
-current_listings = fetch_current_listings(api)
-
-# 各リスティングに対して価格調整を行う
-price_data = load_price_data()
-
-if current_listings:
-    for item in current_listings:
-        item_id = item.ItemID
-        current_price = float(item.SellingStatus.CurrentPrice.value)
-
-        if item_id not in price_data:
-            price_data[item_id] = {"initial_price": current_price, "decrements": 0}
-
-        new_price = current_price - 1
-        price_data[item_id]["decrements"] += 1
-
-        if new_price >= 1:
-            if not update_price(api, item_id, new_price):
-                print(
-                    f"Failed to decrease price for Item ID: {item_id}, reverting to initial price."
-                )
-                update_price(api, item_id, price_data[item_id]["initial_price"])
-            else:
-                print(f"Price decreased for Item ID: {item_id} to {new_price}")
-        else:
-            print(
-                f"No update needed for Item ID: {item_id} as it is already at or below minimum threshold"
-            )
-
-save_price_data(price_data)
+if __name__ == "__main__":
+    main()
