@@ -3,3 +3,5 @@ gunicorn==21.2.0
 
 requests==2.26.0
 ebaysdk==2.2.0
+apscheduler==3.10.4 
+tzlocal==5.2

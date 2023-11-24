@@ -2,9 +2,9 @@ import requests
 import logging
 from requests.auth import HTTPBasicAuth
 from ebaysdk.trading import Connection as Trading
-from datetime import datetime, timedelta
 import json
 import base64
+from datetime import datetime, timedelta
 
 
 # eBayアプリケーションの設定
@@ -78,21 +78,6 @@ def get_seller_list(
         "StartTimeTo": end_time_to.strftime("%Y-%m-%dT%H:%M:%S"),
     }
     # フィルターオプションをリクエストに追加
-    if filter_options:
-        if "min_price" in filter_options:
-            request["MinPrice"] = filter_options["min_price"]
-        if "max_price" in filter_options:
-            request["MaxPrice"] = filter_options["max_price"]
-        if "category" in filter_options:
-            request["CategoryID"] = filter_options["category"]
-        if "start_time_from" in filter_options:
-            request["StartTimeFrom"] = filter_options["start_time_from"]
-        if "start_time_to" in filter_options:
-            request["StartTimeTo"] = filter_options["start_time_to"]
-        if "end_time_from" in filter_options:
-            request["EndTimeFrom"] = filter_options["end_time_from"]
-        if "end_time_to" in filter_options:
-            request["EndTimeTo"] = filter_options["end_time_to"]
 
     response = api.execute("GetSellerList", request)
     return response.dict()
@@ -114,9 +99,17 @@ def extract_active_listings(seller_list):
                 .get("CurrentPrice", {})
                 .get("value", "No Price")
             )
+            picture_url = item.get("PictureDetails", {}).get(
+                "GalleryURL", "default_image_url.jpg"
+            )  # 例: 'default_image_url.jpg' をデフォルト画像URLとします
 
             active_items.append(
-                {"Title": title, "Item ID": item_id, "Current Price": current_price}
+                {
+                    "Title": title,
+                    "Item ID": item_id,
+                    "Current Price": current_price,
+                    "ImageURL": picture_url,
+                }
             )
 
     return active_items

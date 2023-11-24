@@ -15,9 +15,11 @@ from ebay_api import (
     build_auth_url,
 )
 from ebay_api import revise_item_price  # ebay_api.pyから関数をインポート
+import json
 import logging
 
-logging.basicConfig(level=logging.INFO)
+
+logging.basicConfig(level=logging.DEBUG)
 
 
 app = Flask(__name__)
@@ -32,39 +34,64 @@ def index():
         return render_template("index.html")
 
 
-@app.route("/active-listings", methods=["GET"])
+@app.route("/active-listings", methods=["GET", "POST"])
 def active_listings():
-    if "user_token" not in session:
-        flash("You must be authenticated to view active listings.", "info")
-        return redirect(url_for("index"))  # ホームページへリダイレクト
-
-    user_token = session["user_token"]
-    filter_options = {}
+    user_token = session.get("user_token")
 
     if request.method == "POST":
-        # POSTリクエストでフィルターオプションを取得
-        filter_options["min_price"] = request.form.get("min_price")
-        filter_options["max_price"] = request.form.get("max_price")
-        filter_options["category"] = request.form.get("category")
-        filter_options["start_time_from"] = request.form.get("start_time_from")
-        filter_options["start_time_to"] = request.form.get("start_time_to")
-        filter_options["end_time_from"] = request.form.get("end_time_from")
-        filter_options["end_time_to"] = request.form.get("end_time_to")
+        try:
+            # フォームから価格フィルターを取得
+            min_price = request.form.get("min_price", type=float)
+            max_price = request.form.get("max_price", type=float)
 
-    # フィルターオプションに基づいてセラーリストを取得
-    seller_list = get_seller_list(user_token, filter_options)
-    active_listings = extract_active_listings(seller_list)
+            # eBay APIから販売リストを取得
+            seller_list = get_seller_list(user_token)
+            active_listings = extract_active_listings(seller_list)
 
-    return render_template("active_listings.html", listings=active_listings)
+            # フィルタリング関数を適用
+            filtered_listings = filter_listings_by_price(
+                active_listings, min_price, max_price
+            )
+            logging.debug("Filtered listings: %s", filtered_listings)
+            # フィルタリングされたリストをJSONで返す
+            return jsonify({"listings": filtered_listings})
+        except ValueError as e:
+            # 価格フィルターの形式が無効な場合、JSONエラーメッセージを返す
+            return (
+                jsonify(
+                    {"error": "Invalid price format. Please enter a valid number."}
+                ),
+                400,
+            )
+    else:
+        # GETリクエストの場合、全リストを取得
+        seller_list = get_seller_list(user_token)
+        active_listings = extract_active_listings(seller_list)
+        return render_template("active_listings.html", listings=active_listings)
 
-    # try:
-    #     user_token = session["user_token"]
-    #     seller_list = get_seller_list(user_token)
-    #     active_listings = extract_active_listings(seller_list)
-    #     return render_template("active_listings.html", listings=active_listings)
-    # except Exception as e:
-    #     flash(f"An error occurred: {e}", "danger")
-    #     return redirect(url_for("index"))
+
+def filter_listings_by_price(active_listings, min_price=None, max_price=None):
+    filtered_listings = []
+
+    for listing in active_listings:
+        # listingが辞書型であるかを確認
+        if not isinstance(listing, dict):
+            print("Error: Listing is not a dictionary.")
+            continue
+
+        price = float(
+            listing.get("SellingStatus", {}).get("CurrentPrice", {}).get("Value", 0)
+        )
+
+        # 価格に基づいてフィルタリング
+        if min_price is not None and price < min_price:
+            continue
+        if max_price is not None and price > max_price:
+            continue
+
+        filtered_listings.append(listing)
+
+    return filtered_listings
 
 
 @app.route("/ebay/auth")
@@ -105,46 +132,57 @@ def page_not_found(e):
 
 @app.route("/revise-price", methods=["POST"])
 def revise_price():
-    if "user_token" in session:
-        user_token = session["user_token"]
-        item_id = request.form["item_id"]  # フォームからアイテムIDを取得
-        new_price = request.form["new_price"]  # フォームから新しい価格を取得
-
-        # ebay_api.pyの関数を使って価格を更新
-        result = revise_item_price(user_token, item_id, new_price)
-
-        if "Ack" in result and result["Ack"] == "Success":
-            flash("Price updated successfully!", "success")
-        else:
-            flash("Failed to update price.", "danger")
-
-        return redirect(url_for("index"))  # 更新後はホームページにリダイレクト
-    else:
+    if "user_token" not in session:
         flash("You are not authenticated.", "danger")
-        return redirect(url_for("login"))  # 認証されていない場合はログインページにリダイレクト
+        return redirect(url_for("login"))
+
+    user_token = session["user_token"]
+    item_id = request.form.get("item_id")
+    new_price = request.form.get("new_price")
+
+    # 新価格のバリデーション
+    try:
+        new_price = float(new_price)
+        if new_price <= 0:
+            raise ValueError("Invalid price")
+    except ValueError:
+        return jsonify({"status": "error", "message": "Invalid price format"}), 400
+
+    result = revise_item_price(user_token, item_id, new_price)
+
+    if result and result.get("Ack") == "Success":
+        return jsonify({"status": "success", "itemId": item_id, "newPrice": new_price})
+    else:
+        return jsonify({"status": "error", "message": "Failed to update price"}), 400
 
 
-# @app.route("/update-price", methods=["POST"])
-# def update_price():
-#     item_id = request.form.get("item_id")
-#     new_price = request.form.get("new_price")
+@app.route("/bulk-update-price", methods=["POST"])
+def bulk_update_price():
+    user_token = session.get("user_token")
+    if not user_token:
+        return jsonify({"message": "Authentication required"}), 401
 
-#     # 価格のバリデーション（サーバーサイド）
-#     if not is_valid_price(new_price):
-#         return jsonify({"status": "error", "message": "Invalid price format"}), 400
+    item_ids = request.form.getlist("item_ids")
+    new_price = request.form.get("new_price", type=float)
 
-#     # 価格を更新する処理（省略）
+    updated_items = []
+    errors = []
 
-#     return jsonify({"status": "success", "message": "Price updated successfully"})
+    for item_id in item_ids:
+        try:
+            # ここでeBay APIを使用して商品の価格を更新
+            revise_item_price(user_token, item_id, new_price)
+            updated_items.append(item_id)
+        except Exception as e:
+            errors.append({"item_id": item_id, "error": str(e)})
 
-
-# # 価格が有効かどうかを確認する関数
-# def is_valid_price(price):
-#     try:
-#         price_val = float(price)
-#         return price_val >= 0 and "." in price and len(price.split(".")[1]) <= 2
-#     except ValueError:
-#         return False
+    return jsonify(
+        {
+            "message": "Price update process completed.",
+            "updated_items": updated_items,
+            "errors": errors,
+        }
+    )
 
 
 if __name__ == "__main__":
