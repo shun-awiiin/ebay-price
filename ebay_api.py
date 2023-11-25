@@ -54,9 +54,7 @@ def get_user_token(auth_code):
         raise
 
 
-def get_seller_list(
-    user_token, filter_options=None, entries_per_page=100, page_number=1
-):
+def get_seller_list(user_token, entries_per_page=100, page_number=1):
     """
     eBayの販売リストを取得します。
     """
@@ -83,6 +81,64 @@ def get_seller_list(
     return response.dict()
 
 
+# アイテムスペシフィックスを取得する関数
+def get_item_specifics(item_id, user_token):
+    """
+    商品のItem Specificsを取得します。
+
+    :param api: Trading APIのインスタンス
+    :param item_id: 取得する商品のID
+    """
+    api = Trading(
+        config_file=None,
+        appid=app_id,
+        devid=dev_id,
+        certid=cert_id,
+        token=user_token,
+    )
+
+    request = {
+        "ItemID": item_id,
+        "DetailLevel": "ReturnAll",
+        "IncludeItemSpecifics": "true",
+    }
+
+    get_item_specifics_response = api.execute("GetItem", request)
+    itemdict = get_item_specifics_response.dict()
+    item_specifics = (
+        itemdict.get("Item", {}).get("ItemSpecifics", {}).get("NameValueList", [])
+    )
+    return item_specifics
+
+
+# アイテムデスクリプションを取得する関数
+def get_item_description(item_id, user_token):
+    """
+    商品のItem Specificsを取得します。
+
+    :param api: Trading APIのインスタンス
+    :param item_id: 取得する商品のID
+    """
+    api = Trading(
+        config_file=None,
+        appid=app_id,
+        devid=dev_id,
+        certid=cert_id,
+        token=user_token,
+    )
+
+    request = {
+        "ItemID": item_id,
+        "DetailLevel": "ReturnAll",
+        "IncludeItemSpecifics": "true",
+    }
+
+    get_item_description_response = api.execute("GetItem", request)
+    itemdesc = get_item_description_response.dict()
+    item_description = itemdesc.get("Item", {}).get("Description", "")
+    return item_description
+
+
 def extract_active_listings(seller_list):
     """
     販売リストからアクティブなリストを抽出します。
@@ -99,16 +155,12 @@ def extract_active_listings(seller_list):
                 .get("CurrentPrice", {})
                 .get("value", "No Price")
             )
-            picture_url = item.get("PictureDetails", {}).get(
-                "GalleryURL", "default_image_url.jpg"
-            )  # 例: 'default_image_url.jpg' をデフォルト画像URLとします
 
             active_items.append(
                 {
                     "Title": title,
                     "Item ID": item_id,
                     "Current Price": current_price,
-                    "ImageURL": picture_url,
                 }
             )
 

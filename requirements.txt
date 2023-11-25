@@ -5,3 +5,4 @@ requests==2.26.0
 ebaysdk==2.2.0
 apscheduler==3.10.4 
 tzlocal==5.2
+google-cloud-datastore==2.18.0

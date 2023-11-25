@@ -38,11 +38,22 @@
             <div class="col-md-4 mb-3">
                 <div class="card">
                     <!-- 商品情報 -->
-                    <img src="{{ item.ImageURL }}" class="card-img-top" alt="{{ item.Title }}">
                     <div class="card-body">
                         <h5 class="card-title">{{ item.Title }}</h5>
                         <p class="card-text">$ {{ item['Current Price'] }}</p>
                         <button class="btn btn-primary" data-item-id="{{ item['Item ID'] }}" data-current-price="{{ item['Current Price'] }}" onclick="openModal(this)">Update Price</button>
+                        <!-- 商品詳細情報の表示 -->
+                        <div class="item-specifics">
+                            <h6>Details:</h6>
+                            <ul>
+                                {% for specific in item.ItemSpecifics %}
+                                <li>{{ specific.Name }}: {{ specific.Value }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        <div>
+                            {{ item.Description|safe }}
+                        </div>
                     </div>
                     <div class="card-footer">
                         <div class="form-check">
@@ -179,6 +190,28 @@
                 }
             });
         });
+
+        // 一括更新フォームの送信処理
+        $('#bulkPriceUpdateForm').submit(function(e) {
+            e.preventDefault();
+            var selectedItems = $('.form-check-input:checked').map(function() {
+                return this.value;
+            }).get();
+
+            // 選択された商品IDをサーバーに送信
+            $.ajax({
+                url: '/select-items',
+                type: 'POST',
+                data: {item_ids: selectedItems},
+                success: function(response) {
+                    alert('Selected items updated successfully.');
+                },
+                error: function(error) {
+                    alert('Error updating selected items.');
+                }
+            });
+        });
+
 
         // 一括更新後のリスト更新関数
         function updateListingsAfterBulkUpdate(itemIds, newPrice) {

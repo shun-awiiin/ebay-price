@@ -13,11 +13,14 @@ from ebay_api import (
     extract_active_listings,
     get_user_token,
     build_auth_url,
+    get_item_specifics,
+    get_item_description,
 )
 from ebay_api import revise_item_price  # ebay_api.pyから関数をインポート
 import json
 import logging
-
+from apscheduler.schedulers.background import BackgroundScheduler
+from google.cloud import datastore
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -67,7 +70,24 @@ def active_listings():
         # GETリクエストの場合、全リストを取得
         seller_list = get_seller_list(user_token)
         active_listings = extract_active_listings(seller_list)
-        return render_template("active_listings.html", listings=active_listings)
+        active_listings_with_details = extract_active_listings_with_details(
+            seller_list, user_token
+        )
+        return render_template(
+            "active_listings.html", listings=active_listings_with_details
+        )
+
+
+# eBay APIからアクティブなリストを取得して、商品詳細情報を含める
+def extract_active_listings_with_details(seller_list, user_token):
+    active_items = extract_active_listings(seller_list)
+    for item in active_items:
+        item_id = item["Item ID"]
+        specifics = get_item_specifics(item_id, user_token)
+        description = get_item_description(item_id, user_token)
+        item["ItemSpecifics"] = specifics  # 商品詳細情報を追加
+        item["Description"] = description
+    return active_items
 
 
 def filter_listings_by_price(active_listings, min_price=None, max_price=None):
@@ -183,6 +203,66 @@ def bulk_update_price():
             "errors": errors,
         }
     )
+
+
+# Google Cloud Datastoreクライアントの初期化
+client = datastore.Client()
+
+# 一括更新される商品IDを保存するキー
+SELECTED_ITEMS_KEY = "selected_items"
+
+# BackgroundSchedulerの初期化
+scheduler = BackgroundScheduler()
+
+
+def get_selected_items():
+    """Datastoreから選択された商品IDを取得する"""
+    key = client.key(SELECTED_ITEMS_KEY)
+    entity = client.get(key)
+    if not entity:
+        return []
+    return entity["item_ids"]
+
+
+def save_selected_items(item_ids):
+    """Datastoreに選択された商品IDを保存する"""
+    key = client.key(SELECTED_ITEMS_KEY)
+    entity = datastore.Entity(key=key)
+    entity["item_ids"] = item_ids
+    client.put(entity)
+
+
+@app.route("/select-items", methods=["POST"])
+def select_items():
+    item_ids = request.form.getlist("item_ids")
+    save_selected_items(item_ids)
+    return jsonify({"status": "success", "selected_items": item_ids})
+
+
+def daily_price_reduction():
+    """毎日特定の時間に選択された商品の価格を1ドル下げる"""
+    selected_item_ids = get_selected_items()
+    user_token = get_user_token()  # トークンを更新または取得
+
+    for item_id in selected_item_ids:
+        try:
+            # eBay APIから販売リストを取得
+            seller_list = get_seller_list(user_token)
+            active_listings = extract_active_listings(seller_list)
+            current_price = (
+                active_listings.get("SellingStatus", {})
+                .get("CurrentPrice", {})
+                .get("Value", 0)
+            )
+            new_price = current_price - 1
+            revise_item_price(user_token, item_id, new_price)
+        except Exception as e:
+            print(f"Error updating price for item {item_id}: {e}")
+
+
+# スケジューラーの設定と開始
+scheduler.add_job(daily_price_reduction, "cron", hour=0)  # 毎日午前0時に実行
+scheduler.start()
 
 
 if __name__ == "__main__":
