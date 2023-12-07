@@ -1,0 +1,12 @@
+<!-- partials/listings.html -->
+{% for item in listings %}
+<div class="col-md-4 mb-3">
+    <div class="card" id="listingsArea">
+        <div class="card-body">
+            <h5 class="card-title">{{ item.Title }}</h5>
+            <p class="card-text">$ {{ item['Current Price'] }}</p>
+            <button class="btn btn-primary" data-item-id="{{ item['Item ID'] }}" data-current-price="{{ item['Current Price'] }}" onclick="openModal(this)">Update Price</button>
+        </div>
+    </div>
+</div>
+{% endfor %}

@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Active Listings</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Active Listings</h1>
+
+            <!-- リスト表示 -->
+        <div class="row" id="listingsArea">
+            {% for item in listings %}
+            <div class="col-md-4 mb-3">
+                <div class="card">
+                    <!-- 商品情報 -->
+                    <div class="card-body">
+                        <img src="{{ item.ImageURL }}" alt="商品画像" />
+                        <h5 class="card-title">{{ item.Title }}</h5>
+                        <p class="card-text">$ {{ item['Current Price'] }}</p>
+                        <button class="btn btn-primary" data-item-id="{{ item['Item ID'] }}" data-current-price="{{ item['Current Price'] }}" onclick="openModal(this)">Update Price</button>
+                        {% if item.GeneratedTitle %}
+                        <button class="btn btn-info" data-item-id="{{ item['Item ID'] }}" data-generated-title="{{ item.GeneratedTitle }}" onclick="openTitleModal(this)">Update Title</button>
+                        {% endif %}
+                        <!-- 商品詳細情報の表示 -->
+                        <div class="item-specifics">
+                            <h6>Details:</h6>
+                            <ul>
+                                {% for specific in item.ItemSpecifics %}
+                                <li>{{ specific.Name }}: {{ specific.Value }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        <div>
+                            {{ item.Description|safe }}
+                        </div>
+                    </div>
+                        <div class="card-footer">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="{{ item['Item ID'] }}" id="item{{ loop.index }}">
+                                <label class="form-check-label" for="item{{ loop.index }}">Select</label>
+                            </div>
+                        </div>
+                        
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <form id="bulk-decrease-price-form">
+        <!-- 価格を下げる金額を入力するフィールド -->
+        <div class="form-group">
+            <label for="decrease-amount-input">Decrease amount ($):</label>
+            <input type="number" id="decrease-amount-input" name="decrease_amount" class="form-control" placeholder="Enter amount to decrease" required>
+        </div>
+        <!-- 送信ボタン -->
+        <button type="submit" class="btn btn-primary">Apply Decrease</button>
+    </form>
+                    
+
+    <!-- モーダルウィンドウ -->
+    <div class="modal fade" id="priceUpdateModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Update Price</h5>
+                    <button type="button" class="close" data-dismiss="modal">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="priceUpdateForm">
+                        <input type="hidden" id="modalItemId" name="item_id">
+                        <div class="form-group">
+                            <label for="newPrice">New Price</label>
+                            <input type="number" class="form-control" id="newPrice" name="new_price" step="0.01">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Update</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- タイトル更新用のモーダルウィンドウ -->
+    <div class="modal fade" id="titleUpdateModal" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Update Title</h5>
+                    <button type="button" class="close" data-dismiss="modal">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="titleUpdateForm">
+                        <input type="hidden" id="modalTitleItemId" name="item_id">
+                        <div class="form-group">
+                            <label for="newTitle">New Title</label>
+                            <input type="text" class="form-control" id="newTitle" name="new_title">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Update Title</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+     // openModal関数の定義
+    function openModal(button) {
+        var itemId = button.getAttribute('data-item-id');
+        var currentPrice = button.getAttribute('data-current-price');
+
+        // モーダルウィンドウの要素に値をセット
+        $('#modalItemId').val(itemId);
+        $('#newPrice').val(currentPrice);
+
+        // モーダルウィンドウを表示
+        $('#priceUpdateModal').modal('show');
+    }
+
+    function openTitleModal(button) {
+        var itemId = button.getAttribute('data-item-id');
+        var generatedTitle = button.getAttribute('data-generated-title');
+        // モーダルウィンドウの要素に値をセット
+        // 適切な要素IDと入力フィールドに注意してください
+        $('#modalTitleItemId').val(itemId);
+        $('#newTitle').val(generatedTitle);
+        // タイトル更新のモーダルウィンドウを表示
+        // 適切なモーダルIDに注意してください
+        $('#titleUpdateModal').modal('show');
+    }
+
+        // タイトル更新フォームの送信処理
+        $('#titleUpdateForm').submit(function(e) {
+            e.preventDefault();
+            var formData = $(this).serialize();
+
+            $.ajax({
+                url: '/revise-title',
+                type: 'POST',
+                data: formData,
+                success: function(response) {
+                    if (response.status === "success") {
+                        // モーダルを閉じてリストを更新
+                        $('#titleUpdateModal').modal('hide');
+                        // 必要に応じてフロントエンドを更新
+                    } else {
+                        alert(response.message);
+                    }
+                },
+            });
+        });
+
+
+    // Ajaxリクエストの定義
+        // 価格更新フォームの送信処理
+        $('#priceUpdateForm').submit(function(e) {
+            e.preventDefault();
+            var formData = $(this).serialize();
+
+            $.ajax({
+                url: '/revise-price',
+                type: 'POST',
+                data: formData,
+                success: function(response) {
+                    if (response.status === "success") {
+                        // モーダルを閉じてリストを更新
+                        $('#priceUpdateModal').modal('hide');
+                        updateListing(response.itemId, response.newPrice);
+                    } else {
+                        alert(response.message);
+                    }
+                },
+            });
+        });
+        function updateListing(itemId, newPrice) {
+            $(".card").each(function() {
+                var itemCard = $(this);
+                if (itemCard.find('.btn-primary').data("item_id") === itemId) {
+                    itemCard.find(".card-text").text("$ " + newPrice);
+                }
+            });
+        }
+            
+        $('#bulk-decrease-price-form').submit(function(e) {
+            e.preventDefault();
+            var selectedItems = $('.form-check-input:checked').map(function() {
+                return this.value;
+            }).get();
+            console.log(selectedItems); 
+
+            var decreaseAmount = $('#decrease-amount-input').val(); // ユーザーが入力した値を取得
+
+            // 選択された商品IDと新しい価格をサーバーに送信
+            $.ajax({
+                url: '/bulk-decrease-price',
+                type: 'POST',
+                data: {
+                    item_ids: selectedItems,
+                    decrease_amount: decreaseAmount // ユーザーが指定した値を使用
+                },
+                success: function(response) {
+                    alert('Selected items prices were decreased successfully.');
+                    // 必要に応じてフロントエンドを更新
+                },
+                error: function(error) {
+                    alert('Error decreasing prices of selected items.');
+                }
+            });
+        });
+
+    // HTMLエスケープ処理を行う関数
+    function escapeHtml(unsafeText) {
+        return unsafeText
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+    </script>
+</body>
+</html>
