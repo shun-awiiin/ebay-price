@@ -24,6 +24,9 @@ import logging
 from google.cloud import datastore
 import os
 import secrets
+import csv
+import jinja2
+
 
 secret_key = secrets.token_hex(16)
 
@@ -146,14 +149,72 @@ def ebay_connect():
         return render_template("ebay-connect.html")
 
 
+def read_category_ids_from_csv(file_path):
+    """
+    CSVファイルからカテゴリーIDを読み込む関数。
+    """
+    category_ids = []
+    with open(file_path, mode="r", encoding="utf-8") as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            category_ids.append(row["CategoryId"])
+    return category_ids
+
+
+def fetch_data_from_datastore(client, category_id):
+    """
+    Datastoreから特定のカテゴリIDに基づくデータを取得する関数。
+    """
+    query = client.query(kind=f"Watch_{category_id}")
+    return list(query.fetch())
+
+
 @app.route("/layout-static")
 def layout_static():
-    return render_template("layout-static.html")
+    client = datastore.Client()  # Google Cloud Datastoreクライアントの初期化
+    category_ids = read_category_ids_from_csv("categories.csv")
+
+    page = request.args.get("page", 1, type=int)
+    per_page = 10  # 1ページあたりのアイテム数
+
+    items = []
+    for category_id in category_ids:
+        items.extend(fetch_data_from_datastore(client, category_id))
+
+    total_items = len(items)
+    total_pages = total_items // per_page + (1 if total_items % per_page else 0)
+    start = (page - 1) * per_page
+    end = start + per_page
+
+    paginated_items = items[start:end]
+
+    return render_template(
+        "layout-static.html", items=paginated_items, page=page, total_pages=total_pages
+    )
+
+
+def fetch_data_terapeak_from_datastore(client):
+    """
+    Datastoreから全てのデータを取得する関数。
+    """
+    query = client.query(kind="ItemStats")
+    return list(query.fetch())
+
+
+# カスタムフィルターの定義
+def number_format(value, format="%0.2f"):
+    return format % value
+
+
+# カスタムフィルターの追加
+app.jinja_env.filters["number_format"] = number_format
 
 
 @app.route("/layout-sidenav-light")
 def layout_sidenav_light():
-    return render_template("layout-sidenav-light.html")
+    client = datastore.Client()
+    items = fetch_data_terapeak_from_datastore(client)
+    return render_template("layout-sidenav-light.html", items=items)
 
 
 @app.route("/login")
