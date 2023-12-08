@@ -12,3 +12,14 @@ body {
     object-fit: cover; /* 画像をカバーとして表示 */
 }
 
+.card-title {
+    color: #007bff; /* タイトルの色 */
+}
+
+.btn-primary {
+    background-color: #007bff; /* ボタンのカスタムカラー */
+}
+
+.btn-info {
+    background-color: #17a2b8; /* 別のボタンのカスタムカラー */
+}

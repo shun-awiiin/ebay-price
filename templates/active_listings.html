@@ -18,19 +18,30 @@
         <div class="row" id="listingsArea">
             {% for item in listings %}
             <div class="col-md-4 mb-3">
-                <div class="card h-100">
-                    <img src="{{ item.ImageURL }}" alt="商品画像" class="card-img-top"/>
+                <div class="card">
+                    <!-- 画像の表示（複数の画像がある場合）-->
+                    {% if item.get('PictureURL') %}
+                        <img src="{{ item.get('PictureURL')[0] }}" alt="商品画像" class="card-img-top"/>
+                        <div class="card-img-overlay">
+                            <span class="badge badge-pill badge-secondary">{{ item.get('PictureURL')|length }} images</span>
+                        </div>
+                    {% endif %}
+
                     <div class="card-body">
-                        <h5 class="card-title">{{ item.Title }}</h5>
-                        <p class="card-text">$ {{ item['Current Price'] }}</p>
-                        <button class="btn btn-primary" data-item-id="{{ item['Item ID'] }}" data-current-price="{{ item['Current Price'] }}" onclick="openModal(this)">Update Price</button>
-                        {% if item.GeneratedTitle %}
-                        <button class="btn btn-info" data-item-id="{{ item['Item ID'] }}" data-generated-title="{{ item.GeneratedTitle }}" onclick="openTitleModal(this)">Update Title</button>
+                        <h5 class="card-title">{{ item.get('Title') }}</h5>
+                        <p class="card-text">Price: ${{ item.get('Price') }}</p>
+                        {% if item.get('generated_title') %}
+                            <p class="card-text">Generated Title: {{ item.get('generated_title') }}</p>
                         {% endif %}
+                        {% if item.get('image_description') %}
+                            <p class="card-text">{{ item.get('image_description') }}</p>
+                        {% endif %}
+                        <!-- その他の詳細情報 -->
                     </div>
+
+                    <!-- フッター部分（例: アイテムIDの表示） -->
                     <div class="card-footer">
-                        <input class="form-check-input" type="checkbox" value="{{ item['Item ID'] }}" id="item{{ loop.index }}">
-                        <label class="form-check-label" for="item{{ loop.index }}">Select</label>
+                        <small class="text-muted">Item ID: {{ item.key.name }}</small>
                     </div>
                 </div>
             </div>

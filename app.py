@@ -39,41 +39,12 @@ app.secret_key = secrets.token_hex(16)
 
 @app.route("/")
 def index():
-    # 環境変数からAPIキーを取得
-    consumer_id = "shunkiku-tooltest-PRD-690cb6562-fcc8791f"
-
-    # Merchandising APIのエンドポイント
-    MERCHANDISING_API_ENDPOINT = "https://svcs.ebay.com/MerchandisingService"
-    # 'getMostWatchedItems'操作のリクエストパラメータ
-    params = {
-        "OPERATION-NAME": "getMostWatchedItems",
-        "SERVICE-NAME": "MerchandisingService",
-        "SERVICE-VERSION": "1.1.0",
-        "CONSUMER-ID": consumer_id,
-        "RESPONSE-DATA-FORMAT": "JSON",
-        "REST-PAYLOAD": "",
-        "maxResults": "50",
-        "categoryId": "20081",
-    }
-
-    try:
-        # APIリクエストを実行
-        response = requests.get(MERCHANDISING_API_ENDPOINT, params=params)
-        response.raise_for_status()  # HTTPエラーがあれば例外を発生させる
-    except requests.RequestException as e:
-        print(f"APIリクエストエラー: {e}")
-        items = []  # エラー時は空のリストを渡す
-    else:
-        # レスポンスをJSON形式で取得
-        items = (
-            response.json()
-            .get("getMostWatchedItemsResponse", {})
-            .get("itemRecommendations", {})
-            .get("item", [])
-        )
-
+    client = datastore.Client()
+    # DatastoreからEbayItemエンティティを取得
+    query = client.query(kind="EbayItem")
+    ebay_items = list(query.fetch())
     # index.htmlにデータを渡す
-    return render_template("index.html", items=items)
+    return render_template("index.html", listings=ebay_items)
 
 
 @app.route("/ebay/auth")
@@ -108,37 +79,14 @@ def ebay_callback():
 
 @app.route("/active-listings", methods=["GET", "POST"])
 def active_listings():
-    user_token = session.get("user_token")
-    # GETリクエストの場合、全リストを取得
-    seller_list = get_seller_list(user_token)
-    active_listings_with_details = extract_active_listings_with_details(
-        seller_list, user_token
-    )
-    return render_template(
-        "active_listings.html", listings=active_listings_with_details
-    )
+    client = datastore.Client()
 
+    # DatastoreからEbayItemエンティティを取得
+    query = client.query(kind="EbayItem")
+    ebay_items = list(query.fetch())
 
-# eBay APIからアクティブなリストを取得して、商品詳細情報を含める
-def extract_active_listings_with_details(seller_list, user_token):
-    client = datastore.Client()  # Datastoreクライアントの初期化
-    active_items = extract_active_listings(seller_list)
-
-    for item in active_items:
-        item_id = item["Item ID"]
-        specifics, description, img_url = get_item_info(item_id, user_token)
-
-        # Datastoreからgenerated_titleを取得
-        key = client.key("EbayItem", item_id)
-        entity = client.get(key)
-        generated_title = entity.get("generated_title") if entity else None
-
-        item["ItemSpecifics"] = specifics  # 商品詳細情報を追加
-        item["Description"] = description  # 商品説明を追加
-        item["ImageURL"] = img_url  # 商品画像を追加
-        item["GeneratedTitle"] = generated_title  # generated_titleを追加
-
-    return active_items
+    # テンプレートにデータを渡す
+    return render_template("active_listings.html", listings=ebay_items)
 
 
 @app.route("/ebay-connect", methods=["GET"])

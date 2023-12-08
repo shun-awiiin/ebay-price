@@ -184,7 +184,6 @@
                                     <thead>
                                         <tr>
                                             <th>タイトル</th>
-                                            <th>Watch count</th>
                                             <th>価格</th>
                                             <th>リンク</th>
                                             <th>画像</th>
@@ -193,20 +192,17 @@
                                     <tfoot>
                                         <tr>
                                             <th>タイトル</th>
-                                            <th>Watch count</th>
                                             <th>価格</th>
                                             <th>リンク</th>
                                             <th>画像</th>
                                         </tr>
                                     </tfoot>
                                     <tbody>
-                                        {% for item in items %}
+                                        {% for item in listings %}
                                         <tr>
-                                            <td>{{ item.title }}</td>
-                                            <td>{{ item.watchCount }}</td>
-                                            <td>{{ item.buyItNowPrice.__value__ }} {{ item.buyItNowPrice["@currencyId"] }}</td>
-                                            <td><a href="{{ item.viewItemURL }}">View Item</a></td>
-                                            <td><img src="{{ item.imageURL }}" alt="{{ item.title }}"></td>
+                                            <td>{{ item.get('Title') }}</td>
+                                            <td>${{ item.get('Price') }}</td>
+                                
                                         </tr>
                                         {% endfor %}
                                         <tr>
