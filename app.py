@@ -25,6 +25,7 @@ from google.cloud import datastore
 import os
 import secrets
 import csv
+import jinja2
 
 
 secret_key = secrets.token_hex(16)
@@ -192,9 +193,28 @@ def layout_static():
     )
 
 
+def fetch_data_terapeak_from_datastore(client):
+    """
+    Datastoreから全てのデータを取得する関数。
+    """
+    query = client.query(kind="ItemStats")
+    return list(query.fetch())
+
+
+# カスタムフィルターの定義
+def number_format(value, format="%0.2f"):
+    return format % value
+
+
+# カスタムフィルターの追加
+app.jinja_env.filters["number_format"] = number_format
+
+
 @app.route("/layout-sidenav-light")
 def layout_sidenav_light():
-    return render_template("layout-sidenav-light.html")
+    client = datastore.Client()
+    items = fetch_data_terapeak_from_datastore(client)
+    return render_template("layout-sidenav-light.html", items=items)
 
 
 @app.route("/login")
