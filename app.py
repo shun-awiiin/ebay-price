@@ -19,7 +19,6 @@ from ebay_api import (
     get_item_price,
     revise_item_title,
     user_ebay_data,
-    gpt4vision,
 )
 import json
 import logging
@@ -30,6 +29,7 @@ import csv
 import jinja2
 from ebaysdk.trading import Connection as Trading
 import base64
+import openai
 
 
 secret_key = secrets.token_hex(16)
@@ -158,9 +158,6 @@ def update_ebay_data():
         response = api.execute("GetSellerList", request)
         response_dict = response.dict()
 
-        # Google Cloud Datastoreクライアントの初期化
-        client = datastore.Client()
-
         response_user = api.execute("GetUser", {})
         user_data = response_user.dict()
 
@@ -168,8 +165,6 @@ def update_ebay_data():
         for item in response_dict.get("ItemArray", {}).get("Item", []):
             item_id = item.get("ItemID")
             user_id = user_data["User"]["UserID"]
-            image_url = item.get("PictureDetails", {}).get("PictureURL")
-            gpt_img_description = gpt4vision(image_url, item_id)
 
             if not item_id or not user_id:
                 continue
@@ -180,10 +175,11 @@ def update_ebay_data():
                 .get("CurrentPrice", {})
                 .get("value"),
                 "PictureURL": item.get("PictureDetails", {}).get("PictureURL"),
-                "GPTDescription": gpt_img_description,
             }
 
             # コレクション名（エンティティのキー）をセラー名に基づいて設定
+            # Google Cloud Datastoreクライアントの初期化
+            client = datastore.Client()
             key = client.key(f"EbayItem_{user_id}", item_id)
             entity = datastore.Entity(key=key)
             entity.update(item_data)

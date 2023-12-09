@@ -303,11 +303,8 @@ openai.api_key = os.environ.get("OPENAI_API_KEY")
 
 
 def gpt4vision(image_url, item_id):
-    """
-    画像からテキストを生成します。
-    :param image_url: 画像のURL
-    """
-    item_id = item_id
+    client = OpenAI()
+
     response_img = client.chat.completions.create(
         model="gpt-4-vision-preview",
         messages=[
