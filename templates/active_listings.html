@@ -83,6 +83,15 @@
                     </div>
                     {% endfor %}
                 </div>
+                <!-- ページネーション -->
+                <nav aria-label="Page navigation">
+                    <ul class="pagination">
+                        {% if next_cursor %}
+                            <li class="page-item"><a class="page-link" href="{{ url_for('active_listings', cursor=next_cursor) }}">Next</a></li>
+                        {% endif %}
+                    </ul>
+                </nav>
+
         </main>
     </div>
 

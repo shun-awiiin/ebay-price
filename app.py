@@ -28,6 +28,7 @@ import secrets
 import csv
 import jinja2
 from ebaysdk.trading import Connection as Trading
+import base64
 
 
 secret_key = secrets.token_hex(16)
@@ -84,12 +85,30 @@ def active_listings():
     client = datastore.Client()
     user_id = user_ebay_data(user_token=session.get("user_token"))
 
-    # DatastoreからEbayItemエンティティを取得
+    # 1ページあたりのアイテム数
+    page_limit = 30
+
+    # クエリパラメータからカーソルを取得
+    start_cursor = request.args.get("cursor", None)
+    if start_cursor:
+        start_cursor = base64.urlsafe_b64decode(start_cursor.encode("utf-8"))
+
+    # Datastoreのクエリを準備
     query = client.query(kind=f"EbayItem_{user_id}")
-    ebay_items = list(query.fetch())
+    query_iter = query.fetch(limit=page_limit, start_cursor=start_cursor)
+
+    # エンティティを取得
+    ebay_items = list(query_iter)
+
+    # 次のページのカーソルを取得
+    next_cursor = query_iter.next_page_token
+    if next_cursor:
+        next_cursor = base64.urlsafe_b64encode(next_cursor).decode("utf-8")
 
     # テンプレートにデータを渡す
-    return render_template("active_listings.html", listings=ebay_items)
+    return render_template(
+        "active_listings.html", listings=ebay_items, next_cursor=next_cursor
+    )
 
 
 @app.route("/ebay-connect", methods=["GET", "POST"])
