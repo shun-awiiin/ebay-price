@@ -34,6 +34,7 @@ import base64
 secret_key = secrets.token_hex(16)
 
 logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 app = Flask(__name__, template_folder="templates")
@@ -137,44 +138,61 @@ def update_ebay_data():
         siteid="0",
     )
 
-    # APIリクエストの作成
-    request = {
-        "DetailLevel": "ReturnAll",
-        "Pagination": {"EntriesPerPage": 100, "PageNumber": 1},
-        "EndTimeFrom": "2023-11-01T00:00:00",
-        "EndTimeTo": "2023-12-31T23:59:59",
-    }
+    entries_per_page = 200  # eBayの最大取得件数に応じて設定
+    page_number = 1
+    has_more_pages = True
 
-    # APIコールを実行して応答を取得
-    response = api.execute("GetSellerList", request)
-    response_dict = response.dict()
-
-    # Google Cloud Datastoreクライアントの初期化
-    client = datastore.Client()
-
-    response_user = api.execute("GetUser", {})
-    user_data = response_user.dict()
-
-    # 取得したデータをDatastoreに保存
-    for item in response_dict.get("ItemArray", {}).get("Item", []):
-        item_id = item.get("ItemID")
-        user_id = user_data["User"]["UserID"]
-        if not item_id or not user_id:
-            continue
-
-        item_data = {
-            "Title": item.get("Title"),
-            "Price": item.get("SellingStatus", {}).get("CurrentPrice", {}).get("value"),
-            "PictureURL": item.get("PictureDetails", {}).get("PictureURL"),
+    while has_more_pages:
+        request = {
+            "DetailLevel": "ReturnAll",
+            "Pagination": {
+                "EntriesPerPage": entries_per_page,
+                "PageNumber": page_number,
+            },
+            "EndTimeFrom": "2023-11-01T00:00:00",
+            "EndTimeTo": "2023-12-31T23:59:59",
         }
 
-        # コレクション名（エンティティのキー）をセラー名に基づいて設定
-        key = client.key(f"EbayItem_{user_id}", item_id)
-        entity = datastore.Entity(key=key)
-        entity.update(item_data)
-        client.put(entity)
+        # APIコールを実行して応答を取得
+        response = api.execute("GetSellerList", request)
+        response_dict = response.dict()
 
-    print("データをDatastoreに保存しました。")
+        # Google Cloud Datastoreクライアントの初期化
+        client = datastore.Client()
+
+        response_user = api.execute("GetUser", {})
+        user_data = response_user.dict()
+
+        # 取得したデータをDatastoreに保存
+        for item in response_dict.get("ItemArray", {}).get("Item", []):
+            item_id = item.get("ItemID")
+            user_id = user_data["User"]["UserID"]
+            if not item_id or not user_id:
+                continue
+
+            item_data = {
+                "Title": item.get("Title"),
+                "Price": item.get("SellingStatus", {})
+                .get("CurrentPrice", {})
+                .get("value"),
+                "PictureURL": item.get("PictureDetails", {}).get("PictureURL"),
+            }
+
+            # コレクション名（エンティティのキー）をセラー名に基づいて設定
+            key = client.key(f"EbayItem_{user_id}", item_id)
+            entity = datastore.Entity(key=key)
+            entity.update(item_data)
+            client.put(entity)
+
+        print("データをDatastoreに保存しました。")
+
+        # 次のページがあるかどうかを確認
+        pagination_result = response_dict.get("PaginationResult", {})
+        print(pagination_result)
+        total_pages = int(pagination_result.get("TotalNumberOfPages", 0))
+        print(total_pages)
+        has_more_pages = page_number < total_pages
+        page_number += 1
 
 
 def read_category_ids_from_csv(file_path):
