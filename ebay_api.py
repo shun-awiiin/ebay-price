@@ -9,7 +9,6 @@ import openai
 import os
 from google.cloud import datastore
 
-
 # eBayアプリケーションの設定
 app_id = "shunkiku-tooltest-PRD-690cb6562-fcc8791f"
 dev_id = "8480f8f3-218c-48ff-bd22-0a6787809783"
@@ -267,3 +266,32 @@ def revise_item_specifics(user_token, item_id, new_item_specifics):
 
     response = api.execute("ReviseItem", request)
     return response.dict()
+
+
+def user_ebay_data(user_token):
+    if not user_token:
+        print("ユーザートークンが存在しません。")
+        return
+    # eBay APIの設定
+    api = Trading(
+        domain="api.ebay.com",
+        config_file=None,
+        appid="shunkiku-tooltest-PRD-690cb6562-fcc8791f",
+        devid="8480f8f3-218c-48ff-bd22-0a6787809783",
+        certid="PRD-ac3fefa98a56-06a1-4e54-9fbd-fd7b",
+        token=user_token,
+        siteid="0",
+    )
+
+    # APIリクエストの作成
+    request = {
+        "DetailLevel": "ReturnAll",
+        "Pagination": {"EntriesPerPage": 100, "PageNumber": 1},
+        "EndTimeFrom": "2023-11-01T00:00:00",
+        "EndTimeTo": "2023-12-31T23:59:59",
+    }
+
+    response_user = api.execute("GetUser", {})
+    user_data = response_user.dict()
+    user_id = user_data["User"]["UserID"]
+    return user_id

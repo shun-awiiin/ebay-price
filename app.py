@@ -18,6 +18,7 @@ from ebay_api import (
     get_item_info,
     get_item_price,
     revise_item_title,
+    user_ebay_data,
 )
 import json
 import logging
@@ -26,6 +27,8 @@ import os
 import secrets
 import csv
 import jinja2
+from ebaysdk.trading import Connection as Trading
+import base64
 
 
 secret_key = secrets.token_hex(16)
@@ -39,41 +42,12 @@ app.secret_key = secrets.token_hex(16)
 
 @app.route("/")
 def index():
-    # 環境変数からAPIキーを取得
-    consumer_id = "shunkiku-tooltest-PRD-690cb6562-fcc8791f"
-
-    # Merchandising APIのエンドポイント
-    MERCHANDISING_API_ENDPOINT = "https://svcs.ebay.com/MerchandisingService"
-    # 'getMostWatchedItems'操作のリクエストパラメータ
-    params = {
-        "OPERATION-NAME": "getMostWatchedItems",
-        "SERVICE-NAME": "MerchandisingService",
-        "SERVICE-VERSION": "1.1.0",
-        "CONSUMER-ID": consumer_id,
-        "RESPONSE-DATA-FORMAT": "JSON",
-        "REST-PAYLOAD": "",
-        "maxResults": "50",
-        "categoryId": "20081",
-    }
-
-    try:
-        # APIリクエストを実行
-        response = requests.get(MERCHANDISING_API_ENDPOINT, params=params)
-        response.raise_for_status()  # HTTPエラーがあれば例外を発生させる
-    except requests.RequestException as e:
-        print(f"APIリクエストエラー: {e}")
-        items = []  # エラー時は空のリストを渡す
-    else:
-        # レスポンスをJSON形式で取得
-        items = (
-            response.json()
-            .get("getMostWatchedItemsResponse", {})
-            .get("itemRecommendations", {})
-            .get("item", [])
-        )
-
+    client = datastore.Client()
+    # DatastoreからEbayItemエンティティを取得
+    query = client.query(kind="EbayItem")
+    ebay_items = list(query.fetch())
     # index.htmlにデータを渡す
-    return render_template("index.html", items=items)
+    return render_template("index.html", listings=ebay_items)
 
 
 @app.route("/ebay/auth")
@@ -93,7 +67,7 @@ def ebay_callback():
             logging.info("User token obtained successfully.")
             session["user_token"] = user_token  # トークンをセッションに保存
             # 追加の処理（例えばユーザーをアクティブリストページにリダイレクトするなど）
-            return redirect(url_for("active_listings"))
+            return redirect(url_for("/"))
         else:
             logging.warning("Failed to obtain user token.")
             # トークンが取得できなかった場合の処理
@@ -108,45 +82,99 @@ def ebay_callback():
 
 @app.route("/active-listings", methods=["GET", "POST"])
 def active_listings():
-    user_token = session.get("user_token")
-    # GETリクエストの場合、全リストを取得
-    seller_list = get_seller_list(user_token)
-    active_listings_with_details = extract_active_listings_with_details(
-        seller_list, user_token
-    )
+    client = datastore.Client()
+    user_id = user_ebay_data(user_token=session.get("user_token"))
+
+    # 1ページあたりのアイテム数
+    page_limit = 30
+
+    # クエリパラメータからカーソルを取得
+    start_cursor = request.args.get("cursor", None)
+    if start_cursor:
+        start_cursor = base64.urlsafe_b64decode(start_cursor.encode("utf-8"))
+
+    # Datastoreのクエリを準備
+    query = client.query(kind=f"EbayItem_{user_id}")
+    query_iter = query.fetch(limit=page_limit, start_cursor=start_cursor)
+
+    # エンティティを取得
+    ebay_items = list(query_iter)
+
+    # 次のページのカーソルを取得
+    next_cursor = query_iter.next_page_token
+    if next_cursor:
+        next_cursor = base64.urlsafe_b64encode(next_cursor).decode("utf-8")
+
+    # テンプレートにデータを渡す
     return render_template(
-        "active_listings.html", listings=active_listings_with_details
+        "active_listings.html", listings=ebay_items, next_cursor=next_cursor
     )
 
 
-# eBay APIからアクティブなリストを取得して、商品詳細情報を含める
-def extract_active_listings_with_details(seller_list, user_token):
-    client = datastore.Client()  # Datastoreクライアントの初期化
-    active_items = extract_active_listings(seller_list)
-
-    for item in active_items:
-        item_id = item["Item ID"]
-        specifics, description, img_url = get_item_info(item_id, user_token)
-
-        # Datastoreからgenerated_titleを取得
-        key = client.key("EbayItem", item_id)
-        entity = client.get(key)
-        generated_title = entity.get("generated_title") if entity else None
-
-        item["ItemSpecifics"] = specifics  # 商品詳細情報を追加
-        item["Description"] = description  # 商品説明を追加
-        item["ImageURL"] = img_url  # 商品画像を追加
-        item["GeneratedTitle"] = generated_title  # generated_titleを追加
-
-    return active_items
-
-
-@app.route("/ebay-connect", methods=["GET"])
+@app.route("/ebay-connect", methods=["GET", "POST"])
 def ebay_connect():
-    if "user_token" in session:
-        return render_template("ebay-connect.html")
-    else:
-        return render_template("ebay-connect.html")
+    if request.method == "POST":
+        # eBayデータ更新処理を実行
+        update_ebay_data()
+        return jsonify({"status": "success", "message": "Data updated successfully"})
+
+    return render_template("ebay-connect.html")
+
+
+def update_ebay_data():
+    user_token = session.get("user_token")
+    if not user_token:
+        print("ユーザートークンが存在しません。")
+        return
+    # eBay APIの設定
+    api = Trading(
+        domain="api.ebay.com",
+        config_file=None,
+        appid="shunkiku-tooltest-PRD-690cb6562-fcc8791f",
+        devid="8480f8f3-218c-48ff-bd22-0a6787809783",
+        certid="PRD-ac3fefa98a56-06a1-4e54-9fbd-fd7b",
+        token=user_token,
+        siteid="0",
+    )
+
+    # APIリクエストの作成
+    request = {
+        "DetailLevel": "ReturnAll",
+        "Pagination": {"EntriesPerPage": 100, "PageNumber": 1},
+        "EndTimeFrom": "2023-11-01T00:00:00",
+        "EndTimeTo": "2023-12-31T23:59:59",
+    }
+
+    # APIコールを実行して応答を取得
+    response = api.execute("GetSellerList", request)
+    response_dict = response.dict()
+
+    # Google Cloud Datastoreクライアントの初期化
+    client = datastore.Client()
+
+    response_user = api.execute("GetUser", {})
+    user_data = response_user.dict()
+
+    # 取得したデータをDatastoreに保存
+    for item in response_dict.get("ItemArray", {}).get("Item", []):
+        item_id = item.get("ItemID")
+        user_id = user_data["User"]["UserID"]
+        if not item_id or not user_id:
+            continue
+
+        item_data = {
+            "Title": item.get("Title"),
+            "Price": item.get("SellingStatus", {}).get("CurrentPrice", {}).get("value"),
+            "PictureURL": item.get("PictureDetails", {}).get("PictureURL"),
+        }
+
+        # コレクション名（エンティティのキー）をセラー名に基づいて設定
+        key = client.key(f"EbayItem_{user_id}", item_id)
+        entity = datastore.Entity(key=key)
+        entity.update(item_data)
+        client.put(entity)
+
+    print("データをDatastoreに保存しました。")
 
 
 def read_category_ids_from_csv(file_path):

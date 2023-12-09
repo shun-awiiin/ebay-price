@@ -1,21 +1,59 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <!-- ... -->
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-    <title>eBay Integration</title>
+    <title>eBay Data Updater</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding: 20px;
+        }
+        .loader {
+            border: 6px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 6px solid #3498db;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 <body>
     <div class="container">
-        <h1>Welcome to eBay Integration App</h1>
-        
-        <!-- eBayに接続するボタン -->
-        <a href="{{ url_for('ebay_auth') }}" class="btn btn-primary">Connect to eBay</a>
-        <!-- アクティブなリストを表示するボタン -->
-        <a href="{{ url_for('active_listings') }}" class="btn btn-success">View My Active Listings</a>
+        <h2 class="mb-4">eBay Data Updater</h2>
+        <button id="updateDataButton" class="btn btn-primary">Update eBay Data</button>
+        <div id="loader" class="loader" style="display:none;"></div>
     </div>
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const updateButton = document.getElementById("updateDataButton");
+        const loader = document.getElementById("loader");
+
+        updateButton.addEventListener("click", function() {
+            updateButton.disabled = true;
+            loader.style.display = 'inline-block';
+            fetch("/ebay-connect", { method: "POST" })
+                .then(response => response.json())
+                .then(data => {
+                    updateButton.disabled = false;
+                    loader.style.display = 'none';
+                    if (data.status === "success") {
+                        alert("Data updated successfully!");
+                    } else {
+                        alert("Error updating data: " + data.message);
+                    }
+                })
+                .catch(error => {
+                    updateButton.disabled = false;
+                    loader.style.display = 'none';
+                    console.error("Error:", error);
+                    alert("An error occurred while updating data.");
+                });
+        });
+    </script>
 </body>
 </html>
