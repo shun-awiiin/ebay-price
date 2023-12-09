@@ -26,6 +26,7 @@ import os
 import secrets
 import csv
 import jinja2
+from ebaysdk.trading import Connection as Trading
 
 
 secret_key = secrets.token_hex(16)
@@ -89,12 +90,65 @@ def active_listings():
     return render_template("active_listings.html", listings=ebay_items)
 
 
-@app.route("/ebay-connect", methods=["GET"])
+@app.route("/ebay-connect", methods=["GET", "POST"])
 def ebay_connect():
-    if "user_token" in session:
-        return render_template("ebay-connect.html")
-    else:
-        return render_template("ebay-connect.html")
+    if request.method == "POST":
+        # eBayデータ更新処理を実行
+        update_ebay_data()
+        return jsonify({"status": "success", "message": "Data updated successfully"})
+
+    return render_template("ebay-connect.html")
+
+
+def update_ebay_data():
+    user_token = session.get("user_token")
+    if not user_token:
+        print("ユーザートークンが存在しません。")
+        return
+    # eBay APIの設定
+    api = Trading(
+        domain="api.ebay.com",
+        config_file=None,
+        appid="shunkiku-tooltest-PRD-690cb6562-fcc8791f",
+        devid="8480f8f3-218c-48ff-bd22-0a6787809783",
+        certid="PRD-ac3fefa98a56-06a1-4e54-9fbd-fd7b",
+        token=user_token,
+        siteid="0",
+    )
+
+    # APIリクエストの作成
+    request = {
+        "DetailLevel": "ReturnAll",
+        "Pagination": {"EntriesPerPage": 100, "PageNumber": 1},
+        "EndTimeFrom": "2023-11-01T00:00:00",
+        "EndTimeTo": "2023-12-31T23:59:59",
+    }
+
+    # APIコールを実行して応答を取得
+    response = api.execute("GetSellerList", request)
+    response_dict = response.dict()
+
+    # Google Cloud Datastoreクライアントの初期化
+    client = datastore.Client()
+
+    # 取得したデータをDatastoreに保存
+    for item in response_dict.get("ItemArray", {}).get("Item", []):
+        item_id = item.get("ItemID")
+        if not item_id:
+            continue
+
+        item_data = {
+            "Title": item.get("Title"),
+            "Price": item.get("SellingStatus", {}).get("CurrentPrice", {}).get("value"),
+            "PictureURL": item.get("PictureDetails", {}).get("PictureURL"),
+        }
+
+        key = client.key("EbayItem", item_id)
+        entity = datastore.Entity(key=key)
+        entity.update(item_data)
+        client.put(entity)
+
+    print("データをDatastoreに保存しました。")
 
 
 def read_category_ids_from_csv(file_path):
