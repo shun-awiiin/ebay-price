@@ -161,7 +161,6 @@ SELECTED_ITEMS_KEY = "selected_items"  # 一括更新される商品IDを保存�
 # 商品情報を保存するための関数
 def save_item_details(item_info):
     kind = "ItemDetails"  # DatastoreのKind
-    logging.info("Saving item details for"(item_info))
     for item_id, details in item_info.items():
         key = client.key(kind, item_id)  # 商品IDを識別子として使用
         entity = datastore.Entity(key=key)
