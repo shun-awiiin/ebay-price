@@ -18,6 +18,7 @@ from ebay_api import (
     get_item_info,
     get_item_price,
     revise_item_title,
+    user_ebay_data,
 )
 import json
 import logging
@@ -65,7 +66,7 @@ def ebay_callback():
             logging.info("User token obtained successfully.")
             session["user_token"] = user_token  # トークンをセッションに保存
             # 追加の処理（例えばユーザーをアクティブリストページにリダイレクトするなど）
-            return redirect(url_for("active_listings"))
+            return redirect(url_for("/"))
         else:
             logging.warning("Failed to obtain user token.")
             # トークンが取得できなかった場合の処理
@@ -81,9 +82,10 @@ def ebay_callback():
 @app.route("/active-listings", methods=["GET", "POST"])
 def active_listings():
     client = datastore.Client()
+    user_id = user_ebay_data(user_token=session.get("user_token"))
 
     # DatastoreからEbayItemエンティティを取得
-    query = client.query(kind="EbayItem")
+    query = client.query(kind=f"EbayItem_{user_id}")
     ebay_items = list(query.fetch())
 
     # テンプレートにデータを渡す
@@ -131,10 +133,14 @@ def update_ebay_data():
     # Google Cloud Datastoreクライアントの初期化
     client = datastore.Client()
 
+    response_user = api.execute("GetUser", {})
+    user_data = response_user.dict()
+
     # 取得したデータをDatastoreに保存
     for item in response_dict.get("ItemArray", {}).get("Item", []):
         item_id = item.get("ItemID")
-        if not item_id:
+        user_id = user_data["User"]["UserID"]
+        if not item_id or not user_id:
             continue
 
         item_data = {
@@ -143,7 +149,8 @@ def update_ebay_data():
             "PictureURL": item.get("PictureDetails", {}).get("PictureURL"),
         }
 
-        key = client.key("EbayItem", item_id)
+        # コレクション名（エンティティのキー）をセラー名に基づいて設定
+        key = client.key(f"EbayItem_{user_id}", item_id)
         entity = datastore.Entity(key=key)
         entity.update(item_data)
         client.put(entity)
