@@ -2,4 +2,4 @@ runtime: python39
 entrypoint: gunicorn -b :$PORT app:app --timeout 120
 
 env_variables:
-  OPENAI_API_KEY: "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"
+  OPENAI_API_KEY: "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"

@@ -19,6 +19,7 @@ from ebay_api import (
     get_item_price,
     revise_item_title,
     user_ebay_data,
+    gpt4vision,
 )
 import json
 import logging
@@ -167,6 +168,9 @@ def update_ebay_data():
         for item in response_dict.get("ItemArray", {}).get("Item", []):
             item_id = item.get("ItemID")
             user_id = user_data["User"]["UserID"]
+            image_url = item.get("PictureDetails", {}).get("PictureURL")
+            gpt_img_description = gpt4vision(image_url, item_id)
+
             if not item_id or not user_id:
                 continue
 
@@ -176,6 +180,7 @@ def update_ebay_data():
                 .get("CurrentPrice", {})
                 .get("value"),
                 "PictureURL": item.get("PictureDetails", {}).get("PictureURL"),
+                "GPTDescription": gpt_img_description,
             }
 
             # コレクション名（エンティティのキー）をセラー名に基づいて設定
