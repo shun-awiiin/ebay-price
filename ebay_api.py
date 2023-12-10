@@ -294,3 +294,34 @@ def user_ebay_data(user_token):
     user_data = response_user.dict()
     user_id = user_data["User"]["UserID"]
     return user_id
+
+
+from openai import OpenAI
+
+client = OpenAI()
+openai.api_key = os.environ.get("OPENAI_API_KEY")
+
+
+def gpt4vision(image_url, item_id):
+    client = OpenAI()
+
+    response_img = client.chat.completions.create(
+        model="gpt-4-vision-preview",
+        messages=[
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "What’s in this image?"},
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": image_url,
+                        },
+                    },
+                ],
+            }
+        ],
+        max_tokens=500,
+    )
+    gpt_img_description = response_img.choices[0].message.content
+    return gpt_img_description

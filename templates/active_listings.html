@@ -55,22 +55,30 @@
                     {% for item in listings %}
                     <div class="col-md-4 mb-3">
                         <div class="card">
-                            <!-- 画像の表示（複数の画像がある場合）-->
+                            <!-- 画像の表示 -->
                             {% if item.get('PictureURL') %}
-                                <img src="{{ item.get('PictureURL')[0] }}" alt="商品画像" class="card-img-top"/>
-                                <div class="card-img-overlay">
-                                    <span class="badge badge-pill badge-secondary">{{ item.get('PictureURL')|length }} images</span>
-                                </div>
+                                {% if item.get('PictureURL') is iterable and not item.get('PictureURL') is string %}
+                                    <!-- リストであり、要素が存在する場合、最初の画像を表示 -->
+                                    <img src="{{ item.get('PictureURL')[0] }}" alt="商品画像" class="card-img-top"/>
+                                    <div class="card-img-overlay">
+                                        <span class="badge badge-pill badge-secondary">{{ item.get('PictureURL')|length }} images</span>
+                                    </div>
+                                {% elif item.get('PictureURL') is string %}
+                                    <!-- 文字列の場合、そのまま画像URLとして表示 -->
+                                    <img src="{{ item.get('PictureURL') }}" alt="商品画像" class="card-img-top"/>
+                                {% else %}
+                                    <!-- 画像が存在しない場合の処理 -->
+                                    <div class="card-img-top placeholder-image">No Image Available</div>
+                                {% endif %}
                             {% endif %}
-
                             <div class="card-body">
                                 <h5 class="card-title">{{ item.get('Title') }}</h5>
                                 <p class="card-text">Price: ${{ item.get('Price') }}</p>
                                 {% if item.get('generated_title') %}
                                     <p class="card-text">Generated Title: {{ item.get('generated_title') }}</p>
                                 {% endif %}
-                                {% if item.get('image_description') %}
-                                    <p class="card-text">{{ item.get('image_description') }}</p>
+                                {% if item.get('GPTdescription') %}
+                                    <p class="card-text">{{ item.get('GPTdescription') }}</p>
                                 {% endif %}
                                 <!-- その他の詳細情報 -->
                             </div>

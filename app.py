@@ -29,6 +29,7 @@ import csv
 import jinja2
 from ebaysdk.trading import Connection as Trading
 import base64
+import openai
 
 
 secret_key = secrets.token_hex(16)
@@ -157,16 +158,17 @@ def update_ebay_data():
         response = api.execute("GetSellerList", request)
         response_dict = response.dict()
 
-        # Google Cloud Datastoreクライアントの初期化
-        client = datastore.Client()
-
         response_user = api.execute("GetUser", {})
         user_data = response_user.dict()
+
+        # Google Cloud Datastoreクライアントの初期化
+        client = datastore.Client()
 
         # 取得したデータをDatastoreに保存
         for item in response_dict.get("ItemArray", {}).get("Item", []):
             item_id = item.get("ItemID")
             user_id = user_data["User"]["UserID"]
+
             if not item_id or not user_id:
                 continue
 
@@ -266,31 +268,6 @@ def layout_sidenav_light():
 @app.route("/login")
 def login():
     return render_template("login.html")
-
-
-@app.route("/register")
-def register():
-    return render_template("register.html")
-
-
-@app.route("/password")
-def password():
-    return render_template("password.html")
-
-
-@app.route("/401")
-def error_401():
-    return render_template("401.html")
-
-
-@app.route("/404")
-def error_404():
-    return render_template("404.html")
-
-
-@app.route("/500")
-def error_500():
-    return render_template("500.html")
 
 
 @app.route("/charts")
