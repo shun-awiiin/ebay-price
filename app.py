@@ -19,6 +19,7 @@ from ebay_api import (
     get_item_price,
     revise_item_title,
     user_ebay_data,
+    gpt4_img_to_title,
 )
 import json
 import logging
@@ -30,6 +31,7 @@ import jinja2
 from ebaysdk.trading import Connection as Trading
 import base64
 import openai
+from openai import OpenAI
 
 
 secret_key = secrets.token_hex(16)
@@ -263,6 +265,24 @@ def layout_sidenav_light():
     client = datastore.Client()
     items = fetch_data_terapeak_from_datastore(client)
     return render_template("layout-sidenav-light.html", items=items)
+
+
+@app.route("/generate-gpt-title", methods=["POST"])
+def generate_gpt_title_endpoint():
+    data = request.get_json()
+    gpt_description = data.get("gpt_description")
+    if not gpt_description:
+        return jsonify(status="error", message="Item description is missing."), 400
+
+    try:
+        generated_title = gpt4_img_to_title(gpt_description)
+    except Exception as e:
+        return jsonify(status="error", message=str(e)), 500
+
+    if generated_title:
+        return jsonify(status="success", generated_title=generated_title)
+    else:
+        return jsonify(status="error", message="Failed to generate title."), 400
 
 
 @app.route("/login")

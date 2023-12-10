@@ -325,3 +325,31 @@ def gpt4vision(image_url, item_id):
     )
     gpt_img_description = response_img.choices[0].message.content
     return gpt_img_description
+
+
+def gpt4_img_to_title(gpt_description):
+    client = OpenAI()
+    openai.api_key = os.environ.get("OPENAI_API_KEY")
+
+    formatted_description = f"""
+    {gpt_description}
+    Optimize This Title for eBay's Algorithm in Less Than 80 Characters.
+    """
+
+    response_title_img = client.chat.completions.create(
+        model="gpt-4-vision-preview",
+        messages=[
+            {
+                "role": "system",
+                "content": "You are an excellent eBay top seller who is well-versed in eBay's algorithm and capable of creating highly effective titles",
+            },
+            {
+                "role": "user",
+                "content": formatted_description
+                + "Optimize This Title for eBay's Algorithm in Less Than 80 Characters.",
+            },
+        ],
+    )
+
+    generated_title = response_title_img.choices[0].message.content
+    return generated_title

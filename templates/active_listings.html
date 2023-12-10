@@ -80,7 +80,7 @@
                                 {% if item.get('GPTdescription') %}
                                     <p class="card-text">{{ item.get('GPTdescription') }}</p>
                                 {% endif %}
-                                <!-- その他の詳細情報 -->
+                                <button class="btn btn-primary generate-title-btn" data-description="{{ item.get('GPTdescription', '') }}">Generate GPT Title</button>
                             </div>
 
                             <!-- フッター部分（例: アイテムIDの表示） -->
@@ -164,6 +164,34 @@
     </div>
 
     <script>
+    $(".generate-title-btn").click(function() {
+        var GPTdescription = $(this).data("description");
+
+        // GPTdescriptionが空の場合の処理
+        if (!GPTdescription) {
+            alert("Description is empty. Cannot generate title.");
+            return; // 以降の処理を中断
+        }
+
+        $.ajax({
+            url: '/generate-gpt-title',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ gpt_description: GPTdescription }),
+            success: function(response) {
+                if (response.status === "success") {
+                    // 成功した場合の処理
+                    alert("Generated Title: " + response.generated_title);
+                } else {
+                    alert("Failed to generate title: " + response.message);
+                }
+            },
+            error: function(error) {
+                alert("An error occurred while generating the title.");
+            }
+        });
+    });
+
      // openModal関数の定義
     function openModal(button) {
         var itemId = button.getAttribute('data-item-id');
@@ -209,6 +237,8 @@
                 },
             });
         });
+
+        
 
 
     // Ajaxリクエストの定義
