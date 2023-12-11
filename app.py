@@ -312,6 +312,19 @@ def generate_gpt_title_endpoint():
 
     try:
         generated_title = gpt4_img_to_title(gpt_description)
+        print("生成されたタイトル", generated_title)
+
+        user_token = session.get("user_token")
+        user_id = user_ebay_data(user_token)
+        item_id = data.get("item_id")
+        client = datastore.Client()
+        item_id_str = str(item_id)
+        user_id_str = str(user_id)
+        key = client.key(f"EbayItem_{user_id_str}", item_id_str)
+        entity = client.get(key)
+        entity["Generated_title"] = generated_title
+        client.put(entity)
+
     except Exception as e:
         return jsonify(status="error", message=str(e)), 500
 
@@ -319,6 +332,37 @@ def generate_gpt_title_endpoint():
         return jsonify(status="success", generated_title=generated_title)
     else:
         return jsonify(status="error", message="Failed to generate title."), 400
+
+
+@app.route("/revise-title", methods=["POST"])
+def revise_title():
+    data = request.get_json()
+    item_id = data.get("item_id")
+    new_title = data.get("new_title")
+    user_token = session.get("user_token")
+    item_id_str = str(item_id)
+    new_title_str = str(new_title)
+
+    if not item_id_str or not new_title_str or not user_token:
+        return (
+            jsonify({"status": "error", "message": "Missing required parameters"}),
+            400,
+        )
+
+    try:
+        response = revise_item_title(user_token, item_id_str, new_title_str)
+        print("レスポンス", response)
+        # 追加のエラーハンドリングが必要な場合はここに実装します。
+
+        return jsonify(
+            {
+                "status": "success",
+                "message": "Title revised successfully",
+                "response": response,
+            }
+        )
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @app.route("/login")
