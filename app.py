@@ -20,6 +20,7 @@ from ebay_api import (
     revise_item_title,
     user_ebay_data,
     gpt4_img_to_title,
+    gpt4vision,
 )
 import json
 import logging
@@ -152,7 +153,7 @@ def update_ebay_data():
                 "EntriesPerPage": entries_per_page,
                 "PageNumber": page_number,
             },
-            "EndTimeFrom": "2023-11-01T00:00:00",
+            "EndTimeFrom": "2023-12-11T00:00:00",
             "EndTimeTo": "2023-12-31T23:59:59",
         }
 
@@ -164,17 +165,14 @@ def update_ebay_data():
         user_data = response_user.dict()
 
         # Google Cloud Datastoreクライアントの初期化
-        client = datastore.Client()
 
         # 取得したデータをDatastoreに保存
         for item in response_dict.get("ItemArray", {}).get("Item", []):
             item_id = item.get("ItemID")
             user_id = user_data["User"]["UserID"]
 
-            if not item_id or not user_id:
-                continue
-
             item_data = {
+                "ItemID": item_id,
                 "Title": item.get("Title"),
                 "Price": item.get("SellingStatus", {})
                 .get("CurrentPrice", {})
@@ -183,6 +181,7 @@ def update_ebay_data():
             }
 
             # コレクション名（エンティティのキー）をセラー名に基づいて設定
+            client = datastore.Client()
             key = client.key(f"EbayItem_{user_id}", item_id)
             entity = datastore.Entity(key=key)
             entity.update(item_data)
@@ -197,6 +196,43 @@ def update_ebay_data():
         print(total_pages)
         has_more_pages = page_number < total_pages
         page_number += 1
+
+
+@app.route("/gpt-item-description", methods=["POST"])
+def gpt_item_description_sv():
+    # リクエストからデータを取得
+    data = request.get_json()
+    print("受信時", data)
+    item_id = data.get("item_id")
+    print("受信時", item_id)
+    image_url = data.get("image_url")
+    print("受信時", image_url)
+    gpt_description = gpt4vision(image_url)
+
+    if not item_id or not gpt_description:
+        return (
+            jsonify(
+                {"status": "error", "message": "Missing item_id or gpt_description"}
+            ),
+            400,
+        )
+
+    # データベースに保存
+    user_token = session.get("user_token")
+    user_id = user_ebay_data(user_token)
+    print("ユーザーID", user_id)
+    print("アイテムID", item_id)
+    client = datastore.Client()
+    item_id_str = str(item_id)
+    user_id_str = str(user_id)
+    key = client.key(f"EbayItem_{user_id_str}", item_id_str)
+    print("キー", key)
+    entity = client.get(key)
+    print("エンティティ", entity)
+    entity["GPTdescription"] = gpt_description
+    client.put(entity)
+
+    return jsonify({"status": "success", "message": "Description saved successfully"})
 
 
 def read_category_ids_from_csv(file_path):

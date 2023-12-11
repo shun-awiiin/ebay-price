@@ -281,15 +281,6 @@ def user_ebay_data(user_token):
         token=user_token,
         siteid="0",
     )
-
-    # APIリクエストの作成
-    request = {
-        "DetailLevel": "ReturnAll",
-        "Pagination": {"EntriesPerPage": 100, "PageNumber": 1},
-        "EndTimeFrom": "2023-11-01T00:00:00",
-        "EndTimeTo": "2023-12-31T23:59:59",
-    }
-
     response_user = api.execute("GetUser", {})
     user_data = response_user.dict()
     user_id = user_data["User"]["UserID"]
@@ -299,12 +290,11 @@ def user_ebay_data(user_token):
 from openai import OpenAI
 
 client = OpenAI()
-openai.api_key = os.environ.get("OPENAI_API_KEY")
 
 
-def gpt4vision(image_url, item_id):
+def gpt4vision(image_url):
     client = OpenAI()
-
+    openai.api_key = os.environ.get("OPENAI_API_KEY")
     response_img = client.chat.completions.create(
         model="gpt-4-vision-preview",
         messages=[

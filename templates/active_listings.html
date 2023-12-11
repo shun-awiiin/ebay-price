@@ -60,12 +60,11 @@
                                 {% if item.get('PictureURL') is iterable and not item.get('PictureURL') is string %}
                                     <!-- リストであり、要素が存在する場合、最初の画像を表示 -->
                                     <img src="{{ item.get('PictureURL')[0] }}" alt="商品画像" class="card-img-top"/>
-                                    <div class="card-img-overlay">
-                                        <span class="badge badge-pill badge-secondary">{{ item.get('PictureURL')|length }} images</span>
-                                    </div>
+                                    <button class="btn btn-primary gpt-item-description-btn" data-item-id="{{ item.key.name }}" data-image-url="{{ item.get('PictureURL')[0] }}">Generate and Save GPT Description</button>
                                 {% elif item.get('PictureURL') is string %}
                                     <!-- 文字列の場合、そのまま画像URLとして表示 -->
                                     <img src="{{ item.get('PictureURL') }}" alt="商品画像" class="card-img-top"/>
+                                    <button class="btn btn-primary gpt-item-description-btn" data-item-id="{{ item.key.name }}" data-image-url="{{ item.get('PictureURL') }}">Generate and Save GPT Description</button>
                                 {% else %}
                                     <!-- 画像が存在しない場合の処理 -->
                                     <div class="card-img-top placeholder-image">No Image Available</div>
@@ -81,6 +80,9 @@
                                     <p class="card-text">{{ item.get('GPTdescription') }}</p>
                                 {% endif %}
                                 <button class="btn btn-primary generate-title-btn" data-description="{{ item.get('GPTdescription', '') }}">Generate GPT Title</button>
+                                
+                                <!-- GPT Descriptionを表示する領域 -->
+                                <p class="gpt-description-text" style="display:none;"></p>
                             </div>
 
                             <!-- フッター部分（例: アイテムIDの表示） -->
@@ -191,6 +193,36 @@
             }
         });
     });
+
+    $(".gpt-item-description-btn").click(function() {
+    var itemId = $(this).data("item-id");
+    var imageUrl = $(this).data("image-url");
+
+    if (!imageUrl) {
+        alert("No image available for description generation.");
+        return;
+    }
+
+        // GPTを使用して説明文を生成し、データベースに保存するリクエスト
+        $.ajax({
+            url: '/gpt-item-description',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ item_id: itemId, image_url: imageUrl }),
+            success: function(response) {
+                if (response.status === "success") {
+                    // 説明文を表示する
+                    $(".gpt-description-text").text(response.gpt_description).show();
+                } else {
+                    alert("Failed to generate and save description: " + response.message);
+                }
+            },
+            error: function(error) {
+                alert("An error occurred while generating and saving the description.");
+            }
+        });
+    });
+
 
      // openModal関数の定義
     function openModal(button) {
