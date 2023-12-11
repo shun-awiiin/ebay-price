@@ -19,6 +19,8 @@ from ebay_api import (
     get_item_price,
     revise_item_title,
     user_ebay_data,
+    gpt4_img_to_title,
+    gpt4vision,
 )
 import json
 import logging
@@ -30,6 +32,7 @@ import jinja2
 from ebaysdk.trading import Connection as Trading
 import base64
 import openai
+from openai import OpenAI
 
 
 secret_key = secrets.token_hex(16)
@@ -150,7 +153,7 @@ def update_ebay_data():
                 "EntriesPerPage": entries_per_page,
                 "PageNumber": page_number,
             },
-            "EndTimeFrom": "2023-11-01T00:00:00",
+            "EndTimeFrom": "2023-12-11T00:00:00",
             "EndTimeTo": "2023-12-31T23:59:59",
         }
 
@@ -162,17 +165,14 @@ def update_ebay_data():
         user_data = response_user.dict()
 
         # Google Cloud Datastoreクライアントの初期化
-        client = datastore.Client()
 
         # 取得したデータをDatastoreに保存
         for item in response_dict.get("ItemArray", {}).get("Item", []):
             item_id = item.get("ItemID")
             user_id = user_data["User"]["UserID"]
 
-            if not item_id or not user_id:
-                continue
-
             item_data = {
+                "ItemID": item_id,
                 "Title": item.get("Title"),
                 "Price": item.get("SellingStatus", {})
                 .get("CurrentPrice", {})
@@ -181,6 +181,7 @@ def update_ebay_data():
             }
 
             # コレクション名（エンティティのキー）をセラー名に基づいて設定
+            client = datastore.Client()
             key = client.key(f"EbayItem_{user_id}", item_id)
             entity = datastore.Entity(key=key)
             entity.update(item_data)
@@ -195,6 +196,43 @@ def update_ebay_data():
         print(total_pages)
         has_more_pages = page_number < total_pages
         page_number += 1
+
+
+@app.route("/gpt-item-description", methods=["POST"])
+def gpt_item_description_sv():
+    # リクエストからデータを取得
+    data = request.get_json()
+    print("受信時", data)
+    item_id = data.get("item_id")
+    print("受信時", item_id)
+    image_url = data.get("image_url")
+    print("受信時", image_url)
+    gpt_description = gpt4vision(image_url)
+
+    if not item_id or not gpt_description:
+        return (
+            jsonify(
+                {"status": "error", "message": "Missing item_id or gpt_description"}
+            ),
+            400,
+        )
+
+    # データベースに保存
+    user_token = session.get("user_token")
+    user_id = user_ebay_data(user_token)
+    print("ユーザーID", user_id)
+    print("アイテムID", item_id)
+    client = datastore.Client()
+    item_id_str = str(item_id)
+    user_id_str = str(user_id)
+    key = client.key(f"EbayItem_{user_id_str}", item_id_str)
+    print("キー", key)
+    entity = client.get(key)
+    print("エンティティ", entity)
+    entity["GPTdescription"] = gpt_description
+    client.put(entity)
+
+    return jsonify({"status": "success", "message": "Description saved successfully"})
 
 
 def read_category_ids_from_csv(file_path):
@@ -263,6 +301,68 @@ def layout_sidenav_light():
     client = datastore.Client()
     items = fetch_data_terapeak_from_datastore(client)
     return render_template("layout-sidenav-light.html", items=items)
+
+
+@app.route("/generate-gpt-title", methods=["POST"])
+def generate_gpt_title_endpoint():
+    data = request.get_json()
+    gpt_description = data.get("gpt_description")
+    if not gpt_description:
+        return jsonify(status="error", message="Item description is missing."), 400
+
+    try:
+        generated_title = gpt4_img_to_title(gpt_description)
+        print("生成されたタイトル", generated_title)
+
+        user_token = session.get("user_token")
+        user_id = user_ebay_data(user_token)
+        item_id = data.get("item_id")
+        client = datastore.Client()
+        item_id_str = str(item_id)
+        user_id_str = str(user_id)
+        key = client.key(f"EbayItem_{user_id_str}", item_id_str)
+        entity = client.get(key)
+        entity["Generated_title"] = generated_title
+        client.put(entity)
+
+    except Exception as e:
+        return jsonify(status="error", message=str(e)), 500
+
+    if generated_title:
+        return jsonify(status="success", generated_title=generated_title)
+    else:
+        return jsonify(status="error", message="Failed to generate title."), 400
+
+
+@app.route("/revise-title", methods=["POST"])
+def revise_title():
+    data = request.get_json()
+    item_id = data.get("item_id")
+    new_title = data.get("new_title")
+    user_token = session.get("user_token")
+    item_id_str = str(item_id)
+    new_title_str = str(new_title)
+
+    if not item_id_str or not new_title_str or not user_token:
+        return (
+            jsonify({"status": "error", "message": "Missing required parameters"}),
+            400,
+        )
+
+    try:
+        response = revise_item_title(user_token, item_id_str, new_title_str)
+        print("レスポンス", response)
+        # 追加のエラーハンドリングが必要な場合はここに実装します。
+
+        return jsonify(
+            {
+                "status": "success",
+                "message": "Title revised successfully",
+                "response": response,
+            }
+        )
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @app.route("/login")

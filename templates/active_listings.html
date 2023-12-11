@@ -60,12 +60,11 @@
                                 {% if item.get('PictureURL') is iterable and not item.get('PictureURL') is string %}
                                     <!-- リストであり、要素が存在する場合、最初の画像を表示 -->
                                     <img src="{{ item.get('PictureURL')[0] }}" alt="商品画像" class="card-img-top"/>
-                                    <div class="card-img-overlay">
-                                        <span class="badge badge-pill badge-secondary">{{ item.get('PictureURL')|length }} images</span>
-                                    </div>
+                                    <button class="btn btn-primary gpt-item-description-btn" data-item-id="{{ item.key.name }}" data-image-url="{{ item.get('PictureURL')[0] }}">Generate and Save GPT Description</button>
                                 {% elif item.get('PictureURL') is string %}
                                     <!-- 文字列の場合、そのまま画像URLとして表示 -->
                                     <img src="{{ item.get('PictureURL') }}" alt="商品画像" class="card-img-top"/>
+                                    <button class="btn btn-primary gpt-item-description-btn" data-item-id="{{ item.key.name }}" data-image-url="{{ item.get('PictureURL') }}">Generate and Save GPT Description</button>
                                 {% else %}
                                     <!-- 画像が存在しない場合の処理 -->
                                     <div class="card-img-top placeholder-image">No Image Available</div>
@@ -74,13 +73,17 @@
                             <div class="card-body">
                                 <h5 class="card-title">{{ item.get('Title') }}</h5>
                                 <p class="card-text">Price: ${{ item.get('Price') }}</p>
-                                {% if item.get('generated_title') %}
-                                    <p class="card-text">Generated Title: {{ item.get('generated_title') }}</p>
+                                {% if item.get('Generated_title') %}
+                                    <p class="card-text">Generated Title: {{ item.get('Generated_title') }}</p>
+                                    <button class="btn btn-primary update-title-btn" data-item-id="{{ item.key.name }}" data-generated-title="{{ item.get('Generated_title') }}">Update Title</button>
                                 {% endif %}
                                 {% if item.get('GPTdescription') %}
                                     <p class="card-text">{{ item.get('GPTdescription') }}</p>
                                 {% endif %}
-                                <!-- その他の詳細情報 -->
+                                <button class="btn btn-primary generate-title-btn" data-item-id="{{ item.key.name }}" data-description="{{ item.get('GPTdescription', '') }}">Generate GPT Title</button>
+                                
+                                <!-- GPT Descriptionを表示する領域 -->
+                                <p class="gpt-description-text" style="display:none;"></p>
                             </div>
 
                             <!-- フッター部分（例: アイテムIDの表示） -->
@@ -164,6 +167,91 @@
     </div>
 
     <script>
+    $(".generate-title-btn").click(function() {
+        var itemId = $(this).data("item-id");
+        var GPTdescription = $(this).data("description");
+
+        // GPTdescriptionが空の場合の処理
+        if (!GPTdescription) {
+            alert("Description is empty. Cannot generate title.");
+            return; // 以降の処理を中断
+        }
+
+        $.ajax({
+            url: '/generate-gpt-title',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({item_id : itemId , gpt_description: GPTdescription }),
+            success: function(response) {
+                if (response.status === "success") {
+                    // 成功した場合の処理
+                    alert("Generated Title: " + response.generated_title);
+                } else {
+                    alert("Failed to generate title: " + response.message);
+                }
+            },
+            error: function(error) {
+                alert("An error occurred while generating the title.");
+            }
+        });
+    });
+
+    $(".gpt-item-description-btn").click(function() {
+    var itemId = $(this).data("item-id");
+    var imageUrl = $(this).data("image-url");
+
+    if (!imageUrl) {
+        alert("No image available for description generation.");
+        return;
+    }
+
+        // GPTを使用して説明文を生成し、データベースに保存するリクエスト
+        $.ajax({
+            url: '/gpt-item-description',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ item_id: itemId, image_url: imageUrl }),
+            success: function(response) {
+                if (response.status === "success") {
+                    // 説明文を表示する
+                    $(".gpt-description-text").text(response.gpt_description).show();
+                } else {
+                    alert("Failed to generate and save description: " + response.message);
+                }
+            },
+            error: function(error) {
+                alert("An error occurred while generating and saving the description.");
+            }
+        });
+    });
+
+     // タイトル更新フォームの送信処理
+     $(document).ready(function() {
+        $(".update-title-btn").click(function() {
+            var itemId = $(this).data("item-id");
+            var newTitle = $(this).data("generated-title");
+
+            // Ajaxリクエストを送信
+            $.ajax({
+                url: '/revise-title',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ item_id: itemId, new_title: newTitle }),
+                success: function(response) {
+                    if (response.status === "success") {
+                        alert("Title updated successfully.");
+                        // ここでフロントエンドの表示を更新する処理を追加
+                    } else {
+                        alert("Failed to update title: " + response.message);
+                    }
+                },
+                error: function(error) {
+                    alert("An error occurred while updating the title.");
+                }
+            });
+        });
+    });
+
      // openModal関数の定義
     function openModal(button) {
         var itemId = button.getAttribute('data-item-id');
@@ -176,40 +264,6 @@
         // モーダルウィンドウを表示
         $('#priceUpdateModal').modal('show');
     }
-
-    function openTitleModal(button) {
-        var itemId = button.getAttribute('data-item-id');
-        var generatedTitle = button.getAttribute('data-generated-title');
-        // モーダルウィンドウの要素に値をセット
-        // 適切な要素IDと入力フィールドに注意してください
-        $('#modalTitleItemId').val(itemId);
-        $('#newTitle').val(generatedTitle);
-        // タイトル更新のモーダルウィンドウを表示
-        // 適切なモーダルIDに注意してください
-        $('#titleUpdateModal').modal('show');
-    }
-
-        // タイトル更新フォームの送信処理
-        $('#titleUpdateForm').submit(function(e) {
-            e.preventDefault();
-            var formData = $(this).serialize();
-
-            $.ajax({
-                url: '/revise-title',
-                type: 'POST',
-                data: formData,
-                success: function(response) {
-                    if (response.status === "success") {
-                        // モーダルを閉じてリストを更新
-                        $('#titleUpdateModal').modal('hide');
-                        // 必要に応じてフロントエンドを更新
-                    } else {
-                        alert(response.message);
-                    }
-                },
-            });
-        });
-
 
     // Ajaxリクエストの定義
         // 価格更新フォームの送信処理
