@@ -84,6 +84,8 @@
                                 
                                 <!-- GPT Descriptionを表示する領域 -->
                                 <p class="gpt-description-text" style="display:none;"></p>
+                                <!--編集ボタン-->
+                                <button class="btn btn-primary edit-item-btn" data-item-id="{{ item.key.name }}">Edit</button>
                             </div>
 
                             <!-- フッター部分（例: アイテムIDの表示） -->
@@ -251,6 +253,14 @@
             });
         });
     });
+
+    $(document).on('click', '.edit-item-btn', function() {
+        var itemId = $(this).data('item-id');
+        // 編集ページにアイテムIDを渡す方法を実装
+        // 例: クエリパラメータとして渡す
+        window.location.href = '/edit-item/' + itemId;
+    });
+
 
      // openModal関数の定義
     function openModal(button) {

@@ -365,6 +365,22 @@ def revise_title():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+@app.route("/edit-item/<item_id>")
+def edit_item(item_id):
+    # Datastoreから特定のアイテムのデータを取得
+    client = datastore.Client()
+    key = client.key("EbayItem_awiiin", item_id)
+    item = client.get(key)
+
+    # itemがNoneの場合、アイテムが見つからなかったというメッセージを表示
+    if item is None:
+        flash("Item not found.", "danger")
+        return redirect(url_for("index"))
+
+    # `edit-item.html`にアイテムデータを渡してレンダリング
+    return render_template("edit-item.html", item=item)
+
+
 @app.route("/login")
 def login():
     return render_template("login.html")
