@@ -255,7 +255,7 @@ def fetch_data_from_datastore(client, category_id):
     return list(query.fetch())
 
 
-@app.route("/layout-static")
+@app.route("/watch_count")
 def layout_static():
     client = datastore.Client()  # Google Cloud Datastoreクライアントの初期化
     category_ids = read_category_ids_from_csv("categories.csv")
@@ -275,7 +275,7 @@ def layout_static():
     paginated_items = items[start:end]
 
     return render_template(
-        "layout-static.html", items=paginated_items, page=page, total_pages=total_pages
+        "watch_count.html", items=paginated_items, page=page, total_pages=total_pages
     )
 
 
@@ -296,11 +296,11 @@ def number_format(value, format="%0.2f"):
 app.jinja_env.filters["number_format"] = number_format
 
 
-@app.route("/layout-sidenav-light")
+@app.route("/market_terapeak")
 def layout_sidenav_light():
     client = datastore.Client()
     items = fetch_data_terapeak_from_datastore(client)
-    return render_template("layout-sidenav-light.html", items=items)
+    return render_template("market_terapeak.html", items=items)
 
 
 @app.route("/generate-gpt-title", methods=["POST"])
