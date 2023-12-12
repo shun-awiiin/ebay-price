@@ -33,6 +33,7 @@ from ebaysdk.trading import Connection as Trading
 import base64
 import openai
 from openai import OpenAI
+from datetime import datetime, timedelta
 
 
 secret_key = secrets.token_hex(16)
@@ -141,6 +142,12 @@ def update_ebay_data():
         token=user_token,
         siteid="0",
     )
+    # 現在の日時を取得
+    current_time = datetime.utcnow()
+
+    # アクティブリストを取得する期間を設定（例：過去30日間）
+    end_time_from = current_time - timedelta(days=30)
+    end_time_to = current_time
 
     entries_per_page = 200  # eBayの最大取得件数に応じて設定
     page_number = 1
@@ -153,8 +160,8 @@ def update_ebay_data():
                 "EntriesPerPage": entries_per_page,
                 "PageNumber": page_number,
             },
-            "EndTimeFrom": "2023-12-11T00:00:00",
-            "EndTimeTo": "2023-12-31T23:59:59",
+            "EndTimeFrom": end_time_from.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+            "EndTimeTo": end_time_to.strftime("%Y-%m-%dT%H:%M:%S.000Z"),
         }
 
         # APIコールを実行して応答を取得
@@ -178,6 +185,7 @@ def update_ebay_data():
                 .get("CurrentPrice", {})
                 .get("value"),
                 "PictureURL": item.get("PictureDetails", {}).get("PictureURL"),
+                "StartTime": item.get("ListingDetails", {}),
             }
 
             # コレクション名（エンティティのキー）をセラー名に基づいて設定
