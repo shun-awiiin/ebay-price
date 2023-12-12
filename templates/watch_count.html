@@ -13,20 +13,14 @@
 </head>
 <body class="sb-nav-fixed">
     <nav class="sb-topnav navbar navbar-expand navbar-dark bg-dark">
-        <a class="navbar-brand ps-3" href="/">Awiiin</a>
-        <!-- Navbarの内容 -->
+        {% include 'navbar.html' %}
     </nav>
     <div id="layoutSidenav">
-        <div id="layoutSidenav_nav">
-            <!-- サイドナビゲーションの内容 -->
-        </div>
+        {% include 'sidebar.html' %}
         <div id="layoutSidenav_content">
             <main>
                 <div class="container-fluid px-4">
-                    <h1 class="mt-4">Dashboard</h1>
-                    <!-- その他のダッシュボード要素 -->
-
-                    <!-- データ表示部分 -->
+                    <h4 class="mt-4">ebay categoly analytics</h4>
                     <div class="card mb-4">
                         <div class="card-header">
                             <i class="fas fa-table me-1"></i>
@@ -34,6 +28,7 @@
                         </div>
                         <div class="card-body">
                             <table id="datatablesSimple">
+                                <!-- 以前のテーブルの内容をここに保持 -->
                                 <thead>
                                     <tr>
                                         <th>Title</th>
@@ -65,7 +60,7 @@
                                 </tbody>
                             </table>
 
-                            <!-- ページネーションコントロール -->
+                            <!-- ページネーションコントロールの保持 -->
                             <nav>
                                 <ul class="pagination">
                                     {% for i in range(1, total_pages + 1) %}
@@ -79,16 +74,11 @@
                     </div>
                 </div>
             </main>
-            <footer class="py-4 bg-light mt-auto">
-                <!-- フッターの内容 -->
-            </footer>
+            {% include 'footer.html' %}
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4"></script>
     <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/chart-area-demo.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/chart-bar-demo.js') }}"></script>
-    <script src="https://cdn.jsdelivr.net/npm/simple-datatables@7.1.2/dist/umd/simple-datatables.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/simple-datatables@7.1.2/dist/simple-datatables.min.js" crossorigin="anonymous"></script>
 </body>
 </html>

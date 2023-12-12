@@ -1,0 +1,28 @@
+body {
+    background-color: #f4f7f6;
+    margin-top: 20px;
+}
+.edit-container {
+    display: flex;
+    justify-content: space-between;
+    background: #fff;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    border-radius: 8px;
+}
+.edit-form, .preview-area {
+    width: 48%;
+}
+.edit-form input, .edit-form textarea {
+    margin-bottom: 15px;
+}
+.preview-area {
+    border-left: 2px solid #eee;
+    padding-left: 20px;
+}
+.preview-image {
+    max-width: 100%;
+    height: auto;
+    border-radius: 5px;
+    margin-bottom: 15px;
+}
