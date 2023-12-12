@@ -1,0 +1,58 @@
+<!-- 価格更新ボタン -->
+<form id="bulk-decrease-price-form">
+    <!-- 価格を下げる金額を入力するフィールド -->
+    <div class="form-group">
+        <label for="decrease-amount-input">Decrease amount ($):</label>
+        <input type="number" id="decrease-amount-input" name="decrease_amount" class="form-control" placeholder="Enter amount to decrease" required>
+    </div>
+    <!-- 送信ボタン -->
+    <button type="submit" class="btn btn-primary">Apply Decrease</button>
+</form>
+                
+
+<!-- モーダルウィンドウ -->
+<div class="modal fade" id="priceUpdateModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Update Price</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="priceUpdateForm">
+                    <input type="hidden" id="modalItemId" name="item_id">
+                    <div class="form-group">
+                        <label for="newPrice">New Price</label>
+                        <input type="number" class="form-control" id="newPrice" name="new_price" step="0.01">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Update</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- タイトル更新用のモーダルウィンドウ -->
+<div class="modal fade" id="titleUpdateModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Update Title</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="titleUpdateForm">
+                    <input type="hidden" id="modalTitleItemId" name="item_id">
+                    <div class="form-group">
+                        <label for="newTitle">New Title</label>
+                        <input type="text" class="form-control" id="newTitle" name="new_title">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Update Title</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
