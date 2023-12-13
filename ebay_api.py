@@ -240,6 +240,133 @@ def revise_item_title(user_token, item_id, new_title):
     return response.dict()
 
 
+from bs4 import BeautifulSoup
+
+
+def update_html_description(html_code, new_text):
+    """
+    HTMLの説明文を更新する関数。
+    :param html_code: 更新するHTMLコード
+    :param new_text: 挿入する新しいテキスト
+    :return: 更新されたHTMLコード
+    """
+    # BeautifulSoupオブジェクトを作成
+    soup = BeautifulSoup(html_code, "html.parser")
+    # "Item Title"の<h2>タグを見つける
+    item_title_tag = soup.find("h2", text="Item Title")
+
+    # "Description"の新しい<h2>タグを作成
+    new_h2_tag = soup.new_tag("h2")
+    new_h2_tag.string = "Description"
+
+    # "Item Title"の<h2>タグの直後のテキストノードを見つける
+    item_title_text = item_title_tag.next_sibling
+
+    # "Description"の新しい<h2>タグと任意のテキストを挿入
+    item_title_text.insert_after(new_h2_tag)
+    new_h2_tag.insert_after(new_text)  # 新しいテキストを追加
+    # 変更されたHTMLを文字列として返す
+    return str(soup)
+
+
+# html_code = "<div class='main1'><h2>Item Title</h2></div>"
+# new_text = "ここに新しい説明文を挿入"
+# updated_html = update_html_description(html_code, new_text)
+# print(updated_html)
+
+
+def final_html_description(item_id, user_id, pre_description):
+    """
+    HTMLの説明文を更新する関数。
+    :param html_code: 更新するHTMLコード
+    :param new_text: 挿入する新しいテキスト
+    :return: 更新されたHTMLコード
+    """
+    # BeautifulSoupオブジェクトを作成
+    client = datastore.Client()
+    item_id_str = str(item_id)
+    user_id_str = str(user_id)
+    key = client.key(f"EbayItem_{user_id_str}", item_id_str)
+    print(key)
+    entity = client.get(key)
+    description = entity.get("Description") if entity else None
+    print(description)
+
+    soup = BeautifulSoup(description, "html.parser")
+    # "Item Title"の<h2>タグを見つける
+    item_title_tag = soup.find("h2", text="Item Title")
+
+    # "Description"の新しい<h2>タグを作成
+    new_h2_tag = soup.new_tag("h2")
+    new_h2_tag.string = "Description"
+
+    # "Item Title"の<h2>タグの直後のテキストノードを見つける
+    item_title_text = item_title_tag.next_sibling
+
+    # "Description"の新しい<h2>タグと任意のテキストを挿入
+    item_title_text.insert_after(new_h2_tag)
+    new_h2_tag.insert_after(pre_description)  # 新しいテキストを追加
+    # 変更されたHTMLを文字列として返す
+    return str(soup)
+
+
+import traceback
+
+
+def revise_item_description(user_token, item_id, new_description):
+    """
+    eBayの商品説明を更新します。
+    :param user_token: eBayのユーザートークン
+    :param item_id: 更新する商品のID
+    :param new_description: 新しい商品説明
+    """
+    api = Trading(
+        domain="api.ebay.com",
+        config_file=None,
+        appid=app_id,
+        devid=dev_id,
+        certid=cert_id,
+        token=user_token,
+        siteid="0",
+    )
+
+    request = {
+        "Item": {
+            "ItemID": item_id,
+            "Description": """<![CDATA[
+                <meta charset="utf-8" /><meta   name="viewport"   content="width=device-width&#044; initial-scale=1" /><style>   .main1 {     border: 1px solid #000;     border-radius: 5px;     margin: 0 auto;     width: 100%;     padding: 0 20px 10px;     background: #fff;     box-sizing: border-box;     word-break: break-all;   }   .main1 p,   .main1 span {     line-height: 24px;     font-size: 18px;   }   .main1 h1 {     font-size: 26px !important;     margin: 30px 0;     text-align: center;     color: #000;   }   .main1 h2 {     margin: 0 0 10px 0;     color: #000;     font-size: 22px;     line-height: 1.2;     text-align: left;   }   .main1 p,   .main1 .product_dec div {     margin: 0;     padding: 0 0 20px 0;     color: #333;     text-align: left;   }   .margin-bottom_change {     padding-bottom: 10px !important;   }   h2 {     border-left: 5px solid #1190d9;     background-color: #f1f1f1;     padding: 10px 20px;   } </style> """
+            + new_description
+            + "]]>",
+        }
+    }
+
+    try:
+        response = api.execute("ReviseItem", request)
+
+        # eBay APIの応答の詳細をログに出力
+        print("eBay API Response:", response.dict())
+
+        if response.reply.Ack != "Failure":
+            return {
+                "success": True,
+                "message": "The item description has been updated successfully.",
+            }
+        else:
+            return {
+                "success": False,
+                "message": "Failed to update the item description.",
+                "error_details": response.reply.Errors,
+            }
+    except Exception as e:
+        # スタックトレースを出力
+        traceback.print_exc()
+        return {
+            "success": False,
+            "message": "An exception occurred while updating the item description.",
+            "error_details": str(e),
+        }
+
+
 def revise_item_specifics(user_token, item_id, new_item_specifics):
     api = Trading(
         domain="api.ebay.com",
