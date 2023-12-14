@@ -15,7 +15,6 @@ from ebay_api import (
     get_user_token,
     build_auth_url,
     revise_item_price,
-    get_item_info,
     get_item_price,
     revise_item_title,
     user_ebay_data,
@@ -23,6 +22,9 @@ from ebay_api import (
     gpt4vision,
     revise_item_description,
     final_html_description,
+    get_item_specifics,
+    gpt_item_specifics_neo,
+    revise_item_specifics_gpt,
 )
 
 import json
@@ -174,8 +176,6 @@ def update_ebay_data():
         response_user = api.execute("GetUser", {})
         user_data = response_user.dict()
 
-        # Google Cloud Datastoreクライアントの初期化
-
         # 取得したデータをDatastoreに保存
         for item in response_dict.get("ItemArray", {}).get("Item", []):
             item_id = item.get("ItemID")
@@ -184,6 +184,12 @@ def update_ebay_data():
             soup = BeautifulSoup(item_description, "html.parser")
             div_main1 = soup.find("div", class_="main1")
             html_content = str(div_main1)
+            item_specifics_save = get_item_specifics(item_id, user_token)
+
+            # コレクション名（エンティティのキー）をセラー名に基づいて設定
+            client = datastore.Client()
+            key = client.key(f"EbayItem_{user_id}", item_id)
+            entity = datastore.Entity(key=key, exclude_from_indexes=["Description"])
 
             item_data = {
                 "ItemID": item_id,
@@ -193,13 +199,10 @@ def update_ebay_data():
                 .get("value"),
                 "PictureURL": item.get("PictureDetails", {}).get("PictureURL"),
                 "StartTime": item.get("ListingDetails", {}),
-                "Description": html_content,
+                "ItemSpecific": item_specifics_save,
             }
+            entity["Description"] = html_content
 
-            # コレクション名（エンティティのキー）をセラー名に基づいて設定
-            client = datastore.Client()
-            key = client.key(f"EbayItem_{user_id}", item_id)
-            entity = datastore.Entity(key=key)
             entity.update(item_data)
             client.put(entity)
 
@@ -242,6 +245,65 @@ def gpt_item_description_sv():
     client.put(entity)
 
     return jsonify({"status": "success", "message": "Description saved successfully"})
+
+
+@app.route("/generate-item-specifics", methods=["POST"])
+def generate_item_specifics():
+    try:
+        # リクエストからデータを取得
+        data = request.get_json()
+        item_id = data.get("item_id")
+        gpt_description = data.get("gpt_description")
+
+        user_token = session.get("user_token")
+        if not user_token:
+            return jsonify({"status": "error", "message": "User token is missing"}), 400
+
+        user_id = user_ebay_data(user_token)  # この関数はユーザーIDを返す必要がある
+        client = datastore.Client()
+        item_id_str = str(item_id)
+        user_id_str = str(user_id)
+        key = client.key(f"EbayItem_{user_id}", item_id)
+        entity = client.get(key)
+
+        if not entity or "ItemSpecific" not in entity:
+            return (
+                jsonify({"status": "error", "message": "Item specifics not found"}),
+                404,
+            )
+
+        print("entity", entity)
+        item_specifics = entity["ItemSpecific"].get("NameValueList", [])
+        print("item_specifics", item_specifics)
+
+        # GPTによるアイテム特定情報の生成
+        gpt_item_specifics = gpt_item_specifics_neo(
+            item_id, item_specifics, gpt_description
+        )
+        print("gpt_item_specifics", gpt_item_specifics)
+
+        entity["Generate_ItemSpecifics"] = gpt_item_specifics
+        client.put(entity)
+
+        new_item_specifics = gpt_item_specifics
+
+        revised_item_specifics = revise_item_specifics_gpt(
+            item_id, new_item_specifics, user_token
+        )
+
+        return (
+            jsonify(
+                {
+                    "status": "success",
+                    "message": "Item specifics generated and saved successfully",
+                }
+            ),
+            200,
+        )
+
+    except Exception as e:
+        # 例外が発生した場合のエラーハンドリング
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 def read_category_ids_from_csv(file_path):
@@ -402,6 +464,22 @@ def revise_item_description_route():
         traceback.print_exc()  # この行を追加
         # 失敗した場合のレスポンス
         return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route("/update-item-specifics", methods=["POST"])
+def update_item_specifics_endpoint():
+    data = request.get_json()
+    item_id = data.get("item_id")
+
+    if not item_id:
+        return jsonify({"status": "error", "message": "Missing item_id"}), 400
+    # 仮のレスポンス
+    return (
+        jsonify(
+            {"status": "success", "message": "Item specifics updated successfully"}
+        ),
+        200,
+    )
 
 
 @app.route("/edit-item/<item_id>")
