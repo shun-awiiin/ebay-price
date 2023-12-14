@@ -80,6 +80,24 @@
                                 <p class="gpt-description-text" style="display:none;"></p>
                                 <!--編集ボタン-->
                                 <button class="btn btn-primary edit-item-btn" data-item-id="{{ item.key.name }}">Edit</button>
+                                <!-- form -->
+                                <form class="revise-description-form">
+                                    <input type="hidden" name="item_id" value="{{ item.key.name }}">
+                                    <textarea name="new_description" rows="4" cols="30">ここに新しい説明を入力</textarea>
+                                    <button type="submit">説明を更新</button>
+                                </form>                                
+                                <div id="result-message"></div>
+                                   <!-- item_specifics GPT reviseボタンを追加 -->
+                                {% if item.get('GPTdescription') %}
+                                    <p class="card-text">Generated specifics</p>
+                                    <!-- templates/active_listings.html -->
+                                    <button class="btn btn-secondary revise-specifics-gpt-btn" data-item-id="{{ item.key.name }}" data-gpt-description="{{ item.GPTdescription }}">Item Specifics with GPT</button>
+                                {% endif %}
+                                {% if item.get('Generate_ItemSpecifics') %}
+                                    <p class="card-text">Generated itemspecifics: {{ item.get('Generate_ItemSpecifics') }}</p>
+                                    <button class="btn btn-primary update-itemspecifics-btn" data-item-id="{{ item.key.name }}" data-generate-itemspecifics="{{ item.get('Generate_ItemSpecifics') }}">Update specifics</button>
+                                {% endif %}
+            
                             </div>
 
                             <!-- フッター部分（例: アイテムIDの表示） -->
@@ -111,6 +129,85 @@
         // 例: クエリパラメータとして渡す
         window.location.href = '/edit-item/' + itemId;
     });
+
+    document.getElementById('listingsArea').addEventListener('submit', function(event) {
+        if (event.target.matches('.revise-description-form')) {
+            event.preventDefault();
+
+            var formData = new FormData(event.target);
+            var data = {
+                item_id: formData.get('item_id'),
+                new_description: formData.get('new_description')
+            };
+
+            fetch('/revise-item-description', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                var resultMessageDiv = event.target.nextElementSibling;
+                if (data.success) {
+                    // 成功時のメッセージを表示
+                    resultMessageDiv.textContent = 'Success: ' + data.message;
+                    resultMessageDiv.style.color = 'green'; // 成功メッセージの色を緑に設定
+                } else {
+                    // エラー時のメッセージを表示
+                    resultMessageDiv.textContent = 'Error: ' + data.message;
+                    resultMessageDiv.style.color = 'red'; // エラーメッセージの色を赤に設定
+                }
+            })
+            .catch((error) => {
+                // ネットワークエラーやその他のエラーの処理
+                var resultMessageDiv = event.target.nextElementSibling;
+                resultMessageDiv.textContent = 'An error occurred: ' + error.message;
+                resultMessageDiv.style.color = 'red'; // エラーメッセージの色を赤に設定
+            });
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // "revise-specifics-gpt-btn"クラスを持つボタンにイベントリスナーを設定
+        const buttons = document.querySelectorAll('.revise-specifics-gpt-btn');
+        buttons.forEach(button => {
+            button.addEventListener('click', function() {
+                const itemId = this.getAttribute('data-item-id');
+                const gptDescription = this.getAttribute('data-gpt-description');
+                generateItemSpecificsWithGPT(itemId, gptDescription);
+            });
+        });
+    });
+
+    function generateItemSpecificsWithGPT(itemId, gptDescription) {
+        // Ajaxを使用してサーバーにPOSTリクエストを送信
+        fetch('/generate-item-specifics', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                item_id: itemId,
+                gpt_description: gptDescription  // GPTで生成された商品の説明を含める
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert('Item specifics generated and saved successfully');
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    }
+
+
+
 
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>

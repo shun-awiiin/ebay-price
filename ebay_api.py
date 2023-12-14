@@ -83,40 +83,26 @@ def get_seller_list(user_token, entries_per_page=100, page_number=1):
     return response.dict()
 
 
-# アイテムスペシフィックスを取得する関数
-def get_item_info(item_id, user_token):
-    """
-    商品のItem Specifics description 画像を取得します。
-
-    :param api: Trading APIのインスタンス
-    :param item_id: 取得する商品のID
-    """
+def get_item_specifics(item_id, user_token):
     api = Trading(
+        domain="api.ebay.com",
         config_file=None,
-        appid=app_id,
-        devid=dev_id,
-        certid=cert_id,
+        appid="shunkiku-tooltest-PRD-690cb6562-fcc8791f",
+        devid="8480f8f3-218c-48ff-bd22-0a6787809783",
+        certid="PRD-ac3fefa98a56-06a1-4e54-9fbd-fd7b",
         token=user_token,
+        siteid="0",
     )
-
     request = {
         "ItemID": item_id,
         "DetailLevel": "ReturnAll",
-        "IncludeItemSpecifics": "true",
+        "IncludeItemSpecifics": True,
     }
 
-    get_item_info_response = api.execute("GetItem", request)
-    item_info = get_item_info_response.dict()
-
-    item_specifics = (
-        item_info.get("Item", {}).get("ItemSpecifics", {}).get("NameValueList", [])
-    )
-    item_description = item_info.get("Item", {}).get("Description", "")
-    item_imgurl = (
-        item_info.get("Item", {}).get("PictureDetails", {}).get("PictureURL", [])
-    )
-
-    return item_specifics, item_description, item_imgurl
+    response = api.execute("GetItem", request)
+    response_dict = response.dict()
+    item_specifics_save = response_dict.get("Item", {}).get("ItemSpecifics", {})
+    return item_specifics_save
 
 
 def get_item_price(item_id, user_token):
@@ -240,7 +226,86 @@ def revise_item_title(user_token, item_id, new_title):
     return response.dict()
 
 
-def revise_item_specifics(user_token, item_id, new_item_specifics):
+from bs4 import BeautifulSoup
+
+
+def update_html_description(html_code, new_text):
+    """
+    HTMLの説明文を更新する関数。
+    :param html_code: 更新するHTMLコード
+    :param new_text: 挿入する新しいテキスト
+    :return: 更新されたHTMLコード
+    """
+    # BeautifulSoupオブジェクトを作成
+    soup = BeautifulSoup(html_code, "html.parser")
+    # "Item Title"の<h2>タグを見つける
+    item_title_tag = soup.find("h2", text="Item Title")
+
+    # "Description"の新しい<h2>タグを作成
+    new_h2_tag = soup.new_tag("h2")
+    new_h2_tag.string = "Description"
+
+    # "Item Title"の<h2>タグの直後のテキストノードを見つける
+    item_title_text = item_title_tag.next_sibling
+
+    # "Description"の新しい<h2>タグと任意のテキストを挿入
+    item_title_text.insert_after(new_h2_tag)
+    new_h2_tag.insert_after(new_text)  # 新しいテキストを追加
+    # 変更されたHTMLを文字列として返す
+    return str(soup)
+
+
+# html_code = "<div class='main1'><h2>Item Title</h2></div>"
+# new_text = "ここに新しい説明文を挿入"
+# updated_html = update_html_description(html_code, new_text)
+# print(updated_html)
+
+
+def final_html_description(item_id, user_id, pre_description):
+    """
+    HTMLの説明文を更新する関数。
+    :param html_code: 更新するHTMLコード
+    :param new_text: 挿入する新しいテキスト
+    :return: 更新されたHTMLコード
+    """
+    # BeautifulSoupオブジェクトを作成
+    client = datastore.Client()
+    item_id_str = str(item_id)
+    user_id_str = str(user_id)
+    key = client.key(f"EbayItem_{user_id_str}", item_id_str)
+    print(key)
+    entity = client.get(key)
+    description = entity.get("Description") if entity else None
+    print(description)
+
+    soup = BeautifulSoup(description, "html.parser")
+    # "Item Title"の<h2>タグを見つける
+    item_title_tag = soup.find("h2", text="Item Title")
+
+    # "Description"の新しい<h2>タグを作成
+    new_h2_tag = soup.new_tag("h2")
+    new_h2_tag.string = "Description"
+
+    # "Item Title"の<h2>タグの直後のテキストノードを見つける
+    item_title_text = item_title_tag.next_sibling
+
+    # "Description"の新しい<h2>タグと任意のテキストを挿入
+    item_title_text.insert_after(new_h2_tag)
+    new_h2_tag.insert_after(pre_description)  # 新しいテキストを追加
+    # 変更されたHTMLを文字列として返す
+    return str(soup)
+
+
+import traceback
+
+
+def revise_item_description(user_token, item_id, new_description):
+    """
+    eBayの商品説明を更新します。
+    :param user_token: eBayのユーザートークン
+    :param item_id: 更新する商品のID
+    :param new_description: 新しい商品説明
+    """
     api = Trading(
         domain="api.ebay.com",
         config_file=None,
@@ -254,17 +319,121 @@ def revise_item_specifics(user_token, item_id, new_item_specifics):
     request = {
         "Item": {
             "ItemID": item_id,
-            "ItemSpecifics": {
-                "NameValueList": [
-                    {"Name": key, "Value": value}
-                    for key, value in new_item_specifics.items()
-                ]
-            },
+            "Description": """<![CDATA[
+                <meta charset="utf-8" /><meta   name="viewport"   content="width=device-width&#044; initial-scale=1" /><style>   .main1 {     border: 1px solid #000;     border-radius: 5px;     margin: 0 auto;     width: 100%;     padding: 0 20px 10px;     background: #fff;     box-sizing: border-box;     word-break: break-all;   }   .main1 p,   .main1 span {     line-height: 24px;     font-size: 18px;   }   .main1 h1 {     font-size: 26px !important;     margin: 30px 0;     text-align: center;     color: #000;   }   .main1 h2 {     margin: 0 0 10px 0;     color: #000;     font-size: 22px;     line-height: 1.2;     text-align: left;   }   .main1 p,   .main1 .product_dec div {     margin: 0;     padding: 0 0 20px 0;     color: #333;     text-align: left;   }   .margin-bottom_change {     padding-bottom: 10px !important;   }   h2 {     border-left: 5px solid #1190d9;     background-color: #f1f1f1;     padding: 10px 20px;   } </style> """
+            + new_description
+            + "]]>",
+        }
+    }
+
+    try:
+        response = api.execute("ReviseItem", request)
+
+        # eBay APIの応答の詳細をログに出力
+        print("eBay API Response:", response.dict())
+
+        if response.reply.Ack != "Failure":
+            return {
+                "success": True,
+                "message": "The item description has been updated successfully.",
+            }
+        else:
+            return {
+                "success": False,
+                "message": "Failed to update the item description.",
+                "error_details": response.reply.Errors,
+            }
+    except Exception as e:
+        # スタックトレースを出力
+        traceback.print_exc()
+        return {
+            "success": False,
+            "message": "An exception occurred while updating the item description.",
+            "error_details": str(e),
+        }
+
+
+def revise_item_specifics_gpt(item_id, new_item_specifics, user_token):
+    api = Trading(
+        domain="api.ebay.com",
+        config_file=None,
+        appid="shunkiku-tooltest-PRD-690cb6562-fcc8791f",
+        devid="8480f8f3-218c-48ff-bd22-0a6787809783",
+        certid="PRD-ac3fefa98a56-06a1-4e54-9fbd-fd7b",
+        token=user_token,
+        siteid="0",
+    )
+    request = {
+        "Item": {
+            "ItemID": item_id,
+            "ItemSpecifics": {"NameValueList": new_item_specifics},
         }
     }
 
     response = api.execute("ReviseItem", request)
     return response.dict()
+
+
+def gpt_item_specifics_neo(item_id, item_specifics, gpt_description):
+    def dict_to_string(d):
+        return ", ".join(f"{key}: {value}" for key, value in d.items())
+
+    # 'Name' と 'Value' のみを抽出
+    extracted_data = [{item["Name"]: item["Value"]} for item in item_specifics]
+    # 結果の表示
+    for item in extracted_data:
+        for name, value in item.items():
+            print(f"{name}: {value}")
+    # リスト内の各辞書を文字列に変換し、それらを更にカンマで結合する
+    specifics_string = ", ".join(dict_to_string(item) for item in extracted_data)
+
+    response_specifics = client.chat.completions.create(
+        model="gpt-4-vision-preview",
+        messages=[
+            {
+                "role": "system",
+                "content": "You are an excellent eBay top seller who is well-versed in eBay's algorithm and capable of creating highly effective item specifics. I am an eBay assistant who can help you create item specifics for your listings. I will ask you a series of questions to help me understand what you are selling and what you would like to include in your item specifics.",
+            },
+            {
+                "role": "user",
+                "content": "Just say yes if you understand."
+                + "I will give you a prerequisite.The prerequisite is"
+                + gpt_description,
+            },
+            {"role": "assistant", "content": "I understood."},
+            {
+                "role": "user",
+                "content": """Based on the prerequisite, please modify only the {NA} in the following content and output it.If no relevant information is found, it's fine to leave it as NA.
+                It's absolutely necessary. 
+                Can you convert this into a dictionary type with 'Name' as the key and 'Value' as the value? Name" should be fixed and only the value of "Value" should be changed to reflect the intent of the "Name" value. 
+                And please refer to the following for the format.
+                    {"Name": "Franchise", "Value": "Pokémon"},.
+                    {"Name": "TV Show", "Value": "Pokémon"},.
+                Never include "&" in the "Value" value.
+                Do not use the "&" character.
+                Never use the "&" character. Never use the letter "&". It's a sure thing.
+                Put the data in one "{ }" and group them together.
+                """
+                + specifics_string,
+            },
+        ],
+        max_tokens=600,
+    )
+
+    # 応答オブジェクトから 'content' を抽出
+    gpt_speifics = response_specifics.choices[0].message.content
+
+    start = gpt_speifics.find("{")
+    end = gpt_speifics.rfind("}") + 1
+    data = gpt_speifics[start:end]
+    cleaned_data = data.replace("{", "[", 1)
+    last_index = cleaned_data.rfind("}")
+    # 最後の '}' を ']' に置き換える
+    if last_index != -1:
+        cleaned_data = cleaned_data[:last_index] + "]" + cleaned_data[last_index + 1 :]
+
+    new_item_specifics = json.loads(cleaned_data)
+    return new_item_specifics
 
 
 def user_ebay_data(user_token):
