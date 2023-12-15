@@ -8,26 +8,40 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/edit_styles.css') }}">
 </head>
-<body>
+<body class="sb-nav-fixed">
+    <nav class="sb-topnav navbar navbar-expand navbar-dark bg-dark">
+        {% include 'navbar.html' %}
+    </nav>
     <div class="container">
         <h2 class="mb-3">Edit Item</h2>
         <div class="edit-container">
             <!-- 編集フォーム -->
             <div class="edit-form">
-                <input type="text" id="editTitle" name="title" placeholder="Title" class="form-control">
-                <textarea id="editDescription" name="description" placeholder="Description" class="form-control"></textarea>
-                <input type="number" id="editPrice" name="price" placeholder="Price" class="form-control">
+                <input type="text" id="editTitle" name="title" value="{{ item.get('Title') }}" placeholder="Title" class="form-control auto-resize" maxlength="80">
+                <div id="titleCount" class="text-muted">0 / 80</div>
+                <textarea id="editDescription" name="description" placeholder="Description" class="form-control auto-resize">{{ item.get('GPTdescription', '') }}</textarea>
+                <input type="number" id="editPrice" name="price" value="{{ item.get('Price') }}" placeholder="Price" class="form-control">
                 <input type="file" id="editImage" name="image" accept="image/*" class="form-control">
+                <!-- 既存画像URLを隠しフィールドに保持 -->
+                <input type="hidden" id="currentImageUrl" value="{{ item.get('PictureURL')[0] if item.get('PictureURL') else '' }}">
+                <!-- item_specificsの編集エリア -->
+                <div class="item-specifics">
+                    <h4>Item Specifics</h4>
+                    <textarea id="editItemSpecifics" name="item_specifics" class="form-control auto-resize">{{ item.get('Generate_ItemSpecifics', '') }}</textarea>
+                </div>
+                
             </div>
             <!-- プレビューエリア -->
             <div class="preview-area">
-                <h5 id="previewTitle">Title Preview</h5>
-                <p id="previewDescription">Description Preview</p>
-                <p id="previewPrice">Price Preview</p>
-                <img id="previewImage" src="" alt="Image Preview" class="preview-image">
+                <h5 id="previewTitle">{{ item.get('Title') }}</h5>
+                <p id="previewDescription">{{ item.get('GPTdescription', '') }}</p>
+                <p id="previewPrice">${{ item.get('Price') }}</p>
+                <img id="previewImage" src="{{ item.get('PictureURL')[0] if item.get('PictureURL') else '' }}" alt="Image Preview" class="preview-image">
+                <!-- Specificsのプレビュー -->
+                <div id="previewItemSpecifics" class="preview-specifics">{{ item.get('Generate_ItemSpecifics', '') }}</div>
             </div>
         </div>
-        <button class="btn btn-primary mt-3">Save Changes</button>
+        <button class="btn btn-primary mt-3" id="saveChanges">Save Changes</button>
     </div>
 
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>

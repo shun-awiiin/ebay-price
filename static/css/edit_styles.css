@@ -26,3 +26,11 @@ body {
     border-radius: 5px;
     margin-bottom: 15px;
 }
+
+.auto-resize {
+    overflow-y: hidden; /* スクロールバーを隠す */
+}
+
+#titleCount {
+    font-size: 0.8em;
+}
