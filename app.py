@@ -25,6 +25,8 @@ from ebay_api import (
     get_item_specifics,
     gpt_item_specifics_neo,
     revise_item_specifics_gpt,
+    background_remove,
+    image_listing_update,
 )
 
 import json
@@ -41,6 +43,8 @@ from openai import OpenAI
 from datetime import datetime, timedelta
 from bs4 import BeautifulSoup
 import traceback
+import tempfile
+from google.cloud import storage
 
 
 secret_key = secrets.token_hex(16)
@@ -496,6 +500,47 @@ def edit_item(item_id):
 
     # `edit-item.html`にアイテムデータを渡してレンダリング
     return render_template("edit-item.html", item=item)
+
+
+@app.route("/remove-background", methods=["POST"])
+def remove_background_endpoint():
+    data = request.get_json()
+    image_url = data.get("imageUrl")
+
+    # 背景削除処理の結果を取得
+    new_image_url = background_remove(image_url)  # 仮定: この関数は新しい画像のURLを返す
+
+    user_token = session.get("user_token")
+    user_id = user_ebay_data(user_token)
+    item_id = data.get("itemId")
+    print("item_id", item_id)
+
+    client = datastore.Client()
+    item_id_str = str(item_id)
+    user_id_str = str(user_id)
+    key = client.key(f"EbayItem_{user_id_str}", item_id_str)
+    entity = client.get(key)
+    print("entity", entity)
+    entity["newImageUrl"] = new_image_url
+    client.put(entity)
+
+    return jsonify({"status": "success", "newImageUrl": new_image_url})
+
+
+@app.route("/remove-background-and-upload-to-ebay", methods=["POST"])
+def update_ebay_listing():
+    user_token = session.get("user_token")
+    data = request.json
+    item_id = data["itemId"]
+    new_image_url = data["imageUrl"]
+
+    # eBay APIを使用してアイテムリスティングを更新
+    success = image_listing_update(user_token, new_image_url, item_id)
+
+    if success:
+        return jsonify({"success": True}), 200
+    else:
+        return jsonify({"success": False}), 500
 
 
 @app.route("/login")
