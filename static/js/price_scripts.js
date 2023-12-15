@@ -77,3 +77,7 @@ function escapeHtml(unsafeText) {
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
 }
+
+function startTutorial() {
+    introJs().start();
+}

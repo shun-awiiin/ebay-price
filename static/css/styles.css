@@ -11241,3 +11241,43 @@ body {
   font-size: 0.75rem;
   border-radius: 0.375rem !important;
 }
+
+.post-card,.video-card {
+  border: 1px solid #ddd;
+  padding: 10px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+}
+
+.post-thumbnail,.video-thumbnail {
+  width: 90px; /* サムネイルの幅を調整 */
+  height: 60px; /* サムネイルの高さを調整 */
+  margin-right: 15px; /* 右のマージンを追加 */
+}
+
+.post-title,.video-title {
+  font-size: 1rem;
+  margin-bottom: 5px;
+}
+
+.post-description,.video-description {
+  font-size: 0.4rem;
+  color: #666;
+}
+
+.title-small {
+  font-size: 0.8rem; /* 文字サイズを小さくする */
+}
+
+.read-more-link {
+  display: block; /* リンクをブロック要素として表示 */
+  font-size: 0.7rem; /* リンクのフォントサイズを設定 */
+  color: #007bff; /* リンクの色を設定 */
+  text-decoration: none; /* 下線を消去 */
+  margin-top: 5px; /* リンクの上のマージンを設定 */
+}
+
+.read-more-link:hover {
+  text-decoration: underline; /* ホバー時に下線を表示 */
+}
