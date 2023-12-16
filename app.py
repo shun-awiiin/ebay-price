@@ -27,6 +27,7 @@ from ebay_api import (
     revise_item_specifics_gpt,
     background_remove,
     image_listing_update,
+    get_item_img,
 )
 
 import json
@@ -267,7 +268,7 @@ def generate_item_specifics():
         client = datastore.Client()
         item_id_str = str(item_id)
         user_id_str = str(user_id)
-        key = client.key(f"EbayItem_{user_id}", item_id)
+        key = client.key(f"EbayItem_{user_id_str}", item_id_str)
         entity = client.get(key)
 
         if not entity or "ItemSpecific" not in entity:
@@ -533,7 +534,6 @@ def update_ebay_listing():
     data = request.json
     item_id = data["itemId"]
     new_image_url = data["imageUrl"]
-
     # eBay APIを使用してアイテムリスティングを更新
     success = image_listing_update(user_token, new_image_url, item_id)
 
@@ -548,9 +548,38 @@ def login():
     return render_template("login.html")
 
 
-@app.route("/charts")
-def charts():
-    return render_template("charts.html")
+@app.route("/update_ebay_img_listing", methods=["POST"])
+def update_ebay_img_listing():
+    user_token = session.get("user_token")
+    data = request.json
+    item_id = data["itemId"]
+    print("item_id", item_id)
+    # Datastoreからアイテムを取得
+    user_id = user_ebay_data(user_token)
+    item_id_str = str(item_id)
+    user_id_str = str(user_id)
+    client = datastore.Client()
+    key = client.key(f"EbayItem_{user_id_str}", item_id_str)
+    entity = client.get(key)
+    # 既存の画像URLを取得
+    existing_new_image_urls = get_item_img(item_id_str, user_token)
+    print("existing_new_image_urls", existing_new_image_urls)
+    existing_image_urls = entity["PictureURL"]
+
+    # 既存の画像URLセットが2つ以上あるかどうかをチェック
+    if len(existing_image_urls) > 1:
+        # 2つ目以降の画像データを引き出し、新しい画像URLに追加
+        updated_image_urls = existing_image_urls[1:]  # 最初の画像を除外
+        updated_image_urls.append(existing_new_image_urls)  # 新しい画像を追加
+    else:
+        # 既存の画像が1つしかない場合は、そのまま新しい画像URLをセット
+        updated_image_urls = [existing_new_image_urls]
+
+    success = image_listing_update(user_token, updated_image_urls, item_id)
+    if success:
+        return jsonify({"success": True}), 200
+    else:
+        return jsonify({"success": False}), 500
 
 
 @app.route("/tables")

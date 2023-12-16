@@ -124,3 +124,26 @@ document.getElementById('removeBackgroundAndUploadToEbayButton').addEventListene
         console.error('Error:', error);
     });
 });
+
+document.getElementById("updateEbayListingButton").addEventListener("click", function() {
+
+    fetch("/update_ebay_img_listing", {
+        method: "POST",
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ itemId: itemId })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert("eBay listing updated successfully!");
+        } else {
+            alert("Failed to update eBay listing.");
+        }
+    })
+    .catch((error) => {
+        console.error('Error:', error);
+        alert("An error occurred while updating eBay listing.");
+    });
+});

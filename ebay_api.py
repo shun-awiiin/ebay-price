@@ -108,6 +108,30 @@ def get_item_specifics(item_id, user_token):
     return item_specifics_save
 
 
+def get_item_img(item_id, user_token):
+    api = Trading(
+        domain="api.ebay.com",
+        config_file=None,
+        appid="shunkiku-tooltest-PRD-690cb6562-fcc8791f",
+        devid="8480f8f3-218c-48ff-bd22-0a6787809783",
+        certid="PRD-ac3fefa98a56-06a1-4e54-9fbd-fd7b",
+        token=user_token,
+        siteid="0",
+    )
+    request = {
+        "ItemID": item_id,
+        "DetailLevel": "ReturnAll",
+        "IncludeItemSpecifics": True,
+    }
+
+    response = api.execute("GetItem", request)
+    response_dict = response.dict()
+    item_img_save = (
+        response_dict.get("Item", {}).get("PictureDetails", {}).get("PictureURL", [])
+    )
+    return item_img_save
+
+
 def get_item_price(item_id, user_token):
     """
     商品のItem Specifics description 画像を取得します。
