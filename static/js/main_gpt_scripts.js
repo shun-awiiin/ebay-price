@@ -82,3 +82,87 @@ if (!imageUrl) {
         });
     });
 });
+
+
+$(document).on('click', '.edit-item-btn', function() {
+    var itemId = $(this).data('item-id');
+    // 編集ページにアイテムIDを渡す方法を実装
+    // 例: クエリパラメータとして渡す
+    window.location.href = '/edit-item/' + itemId;
+});
+
+document.getElementById('listingsArea').addEventListener('submit', function(event) {
+    if (event.target.matches('.revise-description-form')) {
+        event.preventDefault();
+
+        var formData = new FormData(event.target);
+        var data = {
+            item_id: formData.get('item_id'),
+            new_description: formData.get('new_description')
+        };
+
+        fetch('/revise-item-description', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            var resultMessageDiv = event.target.nextElementSibling;
+            if (data.success) {
+                // 成功時のメッセージを表示
+                resultMessageDiv.textContent = 'Success: ' + data.message;
+                resultMessageDiv.style.color = 'green'; // 成功メッセージの色を緑に設定
+            } else {
+                // エラー時のメッセージを表示
+                resultMessageDiv.textContent = 'Error: ' + data.message;
+                resultMessageDiv.style.color = 'red'; // エラーメッセージの色を赤に設定
+            }
+        })
+        .catch((error) => {
+            // ネットワークエラーやその他のエラーの処理
+            var resultMessageDiv = event.target.nextElementSibling;
+            resultMessageDiv.textContent = 'An error occurred: ' + error.message;
+            resultMessageDiv.style.color = 'red'; // エラーメッセージの色を赤に設定
+        });
+    }
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    // "revise-specifics-gpt-btn"クラスを持つボタンにイベントリスナーを設定
+    const buttons = document.querySelectorAll('.revise-specifics-gpt-btn');
+    buttons.forEach(button => {
+        button.addEventListener('click', function() {
+            const itemId = this.getAttribute('data-item-id');
+            const gptDescription = this.getAttribute('data-gpt-description');
+            generateItemSpecificsWithGPT(itemId, gptDescription);
+        });
+    });
+});
+
+function generateItemSpecificsWithGPT(itemId, gptDescription) {
+    // Ajaxを使用してサーバーにPOSTリクエストを送信
+    fetch('/generate-item-specifics', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+            item_id: itemId,
+            gpt_description: gptDescription  // GPTで生成された商品の説明を含める
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            alert('Item specifics generated and saved successfully');
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+}

@@ -58,6 +58,7 @@ app = Flask(__name__, template_folder="templates")
 app.secret_key = secrets.token_hex(16)
 
 
+# ホーム画面
 @app.route("/")
 def index():
     client = datastore.Client()
@@ -68,6 +69,7 @@ def index():
     return render_template("index.html", listings=ebay_items)
 
 
+# ebayログイン--------------------------------------------------------------------------------------------------------
 @app.route("/ebay/auth")
 def ebay_auth():
     # eBayの認証ページにリダイレクト
@@ -96,37 +98,6 @@ def ebay_callback():
         # エラー処理
         flash(f"Error during eBay authentication: {e}")
         return redirect(url_for("index"))
-
-
-@app.route("/active-listings", methods=["GET", "POST"])
-def active_listings():
-    client = datastore.Client()
-    user_id = user_ebay_data(user_token=session.get("user_token"))
-
-    # 1ページあたりのアイテム数
-    page_limit = 30
-
-    # クエリパラメータからカーソルを取得
-    start_cursor = request.args.get("cursor", None)
-    if start_cursor:
-        start_cursor = base64.urlsafe_b64decode(start_cursor.encode("utf-8"))
-
-    # Datastoreのクエリを準備
-    query = client.query(kind=f"EbayItem_{user_id}")
-    query_iter = query.fetch(limit=page_limit, start_cursor=start_cursor)
-
-    # エンティティを取得
-    ebay_items = list(query_iter)
-
-    # 次のページのカーソルを取得
-    next_cursor = query_iter.next_page_token
-    if next_cursor:
-        next_cursor = base64.urlsafe_b64encode(next_cursor).decode("utf-8")
-
-    # テンプレートにデータを渡す
-    return render_template(
-        "active_listings.html", listings=ebay_items, next_cursor=next_cursor
-    )
 
 
 @app.route("/ebay-connect", methods=["GET", "POST"])
@@ -222,6 +193,50 @@ def update_ebay_data():
         page_number += 1
 
 
+@app.route("/login")
+def login():
+    return render_template("login.html")
+
+
+# ebayログイン・データ更新fin--------------------------------------------------------------------------------------------------------
+
+
+# my商品リスト--------------------------------------------------------------------------------------------------------
+@app.route("/active-listings", methods=["GET", "POST"])
+def active_listings():
+    client = datastore.Client()
+    user_id = user_ebay_data(user_token=session.get("user_token"))
+
+    # 1ページあたりのアイテム数
+    page_limit = 30
+
+    # クエリパラメータからカーソルを取得
+    start_cursor = request.args.get("cursor", None)
+    if start_cursor:
+        start_cursor = base64.urlsafe_b64decode(start_cursor.encode("utf-8"))
+
+    # Datastoreのクエリを準備
+    query = client.query(kind=f"EbayItem_{user_id}")
+    query_iter = query.fetch(limit=page_limit, start_cursor=start_cursor)
+
+    # エンティティを取得
+    ebay_items = list(query_iter)
+
+    # 次のページのカーソルを取得
+    next_cursor = query_iter.next_page_token
+    if next_cursor:
+        next_cursor = base64.urlsafe_b64encode(next_cursor).decode("utf-8")
+
+    # テンプレートにデータを渡す
+    return render_template(
+        "active_listings.html", listings=ebay_items, next_cursor=next_cursor
+    )
+
+
+# my商品リストfin--------------------------------------------------------------------------------------------------------
+
+
+# GPTリバイズ--------------------------------------------------------------------------------------------------------
 @app.route("/gpt-item-description", methods=["POST"])
 def gpt_item_description_sv():
     # リクエストからデータを取得
@@ -309,74 +324,6 @@ def generate_item_specifics():
     except Exception as e:
         # 例外が発生した場合のエラーハンドリング
         return jsonify({"status": "error", "message": str(e)}), 500
-
-
-def read_category_ids_from_csv(file_path):
-    """
-    CSVファイルからカテゴリーIDを読み込む関数。
-    """
-    category_ids = []
-    with open(file_path, mode="r", encoding="utf-8") as file:
-        reader = csv.DictReader(file)
-        for row in reader:
-            category_ids.append(row["CategoryId"])
-    return category_ids
-
-
-def fetch_data_from_datastore(client, category_id):
-    """
-    Datastoreから特定のカテゴリIDに基づくデータを取得する関数。
-    """
-    query = client.query(kind=f"Watch_{category_id}")
-    return list(query.fetch())
-
-
-@app.route("/watch_count")
-def layout_static():
-    client = datastore.Client()  # Google Cloud Datastoreクライアントの初期化
-    category_ids = read_category_ids_from_csv("categories.csv")
-
-    page = request.args.get("page", 1, type=int)
-    per_page = 10  # 1ページあたりのアイテム数
-
-    items = []
-    for category_id in category_ids:
-        items.extend(fetch_data_from_datastore(client, category_id))
-
-    total_items = len(items)
-    total_pages = total_items // per_page + (1 if total_items % per_page else 0)
-    start = (page - 1) * per_page
-    end = start + per_page
-
-    paginated_items = items[start:end]
-
-    return render_template(
-        "watch_count.html", items=paginated_items, page=page, total_pages=total_pages
-    )
-
-
-def fetch_data_terapeak_from_datastore(client):
-    """
-    Datastoreから全てのデータを取得する関数。
-    """
-    query = client.query(kind="ItemStats")
-    return list(query.fetch())
-
-
-# カスタムフィルターの定義
-def number_format(value, format="%0.2f"):
-    return format % value
-
-
-# カスタムフィルターの追加
-app.jinja_env.filters["number_format"] = number_format
-
-
-@app.route("/market_terapeak")
-def layout_sidenav_light():
-    client = datastore.Client()
-    items = fetch_data_terapeak_from_datastore(client)
-    return render_template("market_terapeak.html", items=items)
 
 
 @app.route("/generate-gpt-title", methods=["POST"])
@@ -487,6 +434,82 @@ def update_item_specifics_endpoint():
     )
 
 
+# GPTリバイズfin--------------------------------------------------------------------------------------------------------
+
+
+# マーケットリサーチ--------------------------------------------------------------------------------------------------------
+def read_category_ids_from_csv(file_path):
+    """
+    CSVファイルからカテゴリーIDを読み込む関数。
+    """
+    category_ids = []
+    with open(file_path, mode="r", encoding="utf-8") as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            category_ids.append(row["CategoryId"])
+    return category_ids
+
+
+def fetch_data_from_datastore(client, category_id):
+    """
+    Datastoreから特定のカテゴリIDに基づくデータを取得する関数。
+    """
+    query = client.query(kind=f"Watch_{category_id}")
+    return list(query.fetch())
+
+
+@app.route("/watch_count")
+def layout_static():
+    client = datastore.Client()  # Google Cloud Datastoreクライアントの初期化
+    category_ids = read_category_ids_from_csv("categories.csv")
+
+    page = request.args.get("page", 1, type=int)
+    per_page = 10  # 1ページあたりのアイテム数
+
+    items = []
+    for category_id in category_ids:
+        items.extend(fetch_data_from_datastore(client, category_id))
+
+    total_items = len(items)
+    total_pages = total_items // per_page + (1 if total_items % per_page else 0)
+    start = (page - 1) * per_page
+    end = start + per_page
+
+    paginated_items = items[start:end]
+
+    return render_template(
+        "watch_count.html", items=paginated_items, page=page, total_pages=total_pages
+    )
+
+
+def fetch_data_terapeak_from_datastore(client):
+    """
+    Datastoreから全てのデータを取得する関数。
+    """
+    query = client.query(kind="ItemStats")
+    return list(query.fetch())
+
+
+# カスタムフィルターの定義
+def number_format(value, format="%0.2f"):
+    return format % value
+
+
+# カスタムフィルターの追加
+app.jinja_env.filters["number_format"] = number_format
+
+
+@app.route("/market_terapeak")
+def layout_sidenav_light():
+    client = datastore.Client()
+    items = fetch_data_terapeak_from_datastore(client)
+    return render_template("market_terapeak.html", items=items)
+
+
+# マーケットリサーチfin--------------------------------------------------------------------------------------------------------
+
+
+# リストedit--------------------------------------------------------------------------------------------------------
 @app.route("/edit-item/<item_id>")
 def edit_item(item_id):
     # Datastoreから特定のアイテムのデータを取得
@@ -543,11 +566,6 @@ def update_ebay_listing():
         return jsonify({"success": False}), 500
 
 
-@app.route("/login")
-def login():
-    return render_template("login.html")
-
-
 @app.route("/update_ebay_img_listing", methods=["POST"])
 def update_ebay_img_listing():
     user_token = session.get("user_token")
@@ -582,10 +600,7 @@ def update_ebay_img_listing():
         return jsonify({"success": False}), 500
 
 
-@app.route("/tables")
-def tables():
-    return render_template("tables.html")
-
+# リストedit fin--------------------------------------------------------------------------------------------------------
 
 if __name__ == "__main__":
     app.run(debug=True)
