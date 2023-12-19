@@ -22,6 +22,8 @@
                 <textarea id="editDescription" name="description" placeholder="Description" class="form-control auto-resize">{{ item.get('GPTdescription', '') }}</textarea>
                 <input type="number" id="editPrice" name="price" value="{{ item.get('Price') }}" placeholder="Price" class="form-control">
                 <input type="file" id="editImage" name="image" accept="image/*" class="form-control">
+                <button id="removeBackgroundButton" class="btn btn-secondary mt-2">Remove Background</button>
+
                 <!-- 既存画像URLを隠しフィールドに保持 -->
                 <input type="hidden" id="currentImageUrl" value="{{ item.get('PictureURL')[0] if item.get('PictureURL') else '' }}">
                 <!-- item_specificsの編集エリア -->
@@ -37,6 +39,9 @@
                 <p id="previewDescription">{{ item.get('GPTdescription', '') }}</p>
                 <p id="previewPrice">${{ item.get('Price') }}</p>
                 <img id="previewImage" src="{{ item.get('PictureURL')[0] if item.get('PictureURL') else '' }}" alt="Image Preview" class="preview-image">
+                <button id="removeBackgroundAndUploadToEbayButton" class="btn btn-primary mt-2">Update on eBay</button>
+                <button id="updateEbayListingButton" class="btn btn-secondary mt-2">画像が2枚以上ある方の更新ボタン</button>
+
                 <!-- Specificsのプレビュー -->
                 <div id="previewItemSpecifics" class="preview-specifics">{{ item.get('Generate_ItemSpecifics', '') }}</div>
             </div>
