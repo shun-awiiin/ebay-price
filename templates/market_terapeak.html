@@ -21,35 +21,21 @@
             <main>
                 <div class="container-fluid px-4">
                     <h4 class="mt-4">ebay categoly analytics</h4>
+                    <ol class="breadcrumb mb-4">
+                        <li class="breadcrumb-item active">sellthroughレートが高いところを狙うのがおすすめです</li>
+                        <li class="breadcrumb-item active">price-rangeの幅を見ることで上級者も利益率が高いジャンルを狙うことが可能です</li>
+                        <li class="breadcrumb-item active">Total_sellersが多いところは避けたり、TotalSoldが多いところを狙うのは初心者も参入しやすいかもしれません</li>
+                    </ol>
                     <div class="card mb-4">
                         <div class="card-header">
                             <i class="fas fa-table me-1"></i>
-                            Detailed Item Statistics
+                            データの下の方に矢印ボタンでカテゴリー名を表示できるように開ける場所があります。
                         </div>
                         <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-hover" id="datatablesSimple" aria-label="Detailed Item Statistics">
-                                    <thead class="thead-light">
-                                        <tr>
-                                            <th>Keyword</th>
-                                            <th>Total Item Sales</th>
-                                            <th>Total Sellers</th>
-                                            <th>Total Sold</th>
-                                            <th>Sell Through (%)</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for item in items %}
-                                        <tr>
-                                            <td>{{ item['Keyword'] }}</td>
-                                            <td>${{ item['TotalItemSales'] | number_format }}</td>
-                                            <td>{{ item['TotalSellers'] }}</td>
-                                            <td>{{ item['TotalSold'] }}</td>
-                                            <td>{{ item['SellThrough'] | number_format }}%</td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
+                            <div class="table-responsive responsive-iframe">
+                                <!-- Looker Studioのレポートを埋め込む -->
+                                <iframe width="1000" height="1500" src="https://lookerstudio.google.com/embed/reporting/75dcd236-6cd8-423f-b2cd-f5cd50af1964/page/qAflD" frameborder="0" style="border:0" allowfullscreen></iframe>
+                                
                             </div>
                         </div>
                     </div>
