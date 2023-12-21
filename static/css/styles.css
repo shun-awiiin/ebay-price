@@ -11281,3 +11281,32 @@ body {
 .read-more-link:hover {
   text-decoration: underline; /* ホバー時に下線を表示 */
 }
+
+/* スマートフォンなどの小さい画面 */
+@media (max-width: 600px) {
+  iframe, .table-responsive {
+      width: 100%;
+      height: auto;
+  }
+}
+
+/* タブレットサイズの画面 */
+@media (min-width: 601px) and (max-width: 1024px) {
+  iframe, .table-responsive {
+      width: 100%;
+      height: auto;
+  }
+}
+
+/* デスクトップサイズの画面 */
+@media (min-width: 1025px) {
+  iframe, .table-responsive {
+      width: 100%;
+      height: auto;
+  }
+}
+
+.responsive-iframe iframe, .responsive-iframe .table-responsive {
+  height: 150vh; /* 画面の高さの75%を使用 */
+}
+
