@@ -667,3 +667,28 @@ def image_listing_update(user_token, new_image_url, item_id):
     }
     response = api.execute("ReviseItem", request)
     return response.dict()
+
+
+def generate_text_using_gemini_api(image_uri: str) -> str:
+    # Initialize Vertex AI
+    import vertexai
+
+    project_id = "ebayprice-405908"  # GCP プロジェクトID
+    location = "us-central1"  # Vertex AI のロケーション
+    vertexai.init(project=project_id, location=location)
+
+    from vertexai.preview.generative_models import GenerativeModel, Part
+
+    multimodal_model = GenerativeModel("gemini-pro-vision")
+
+    response = multimodal_model.generate_content(
+        [
+            "Just look for the product details in this image.",
+            Part.from_uri(
+                image_uri,
+                mime_type="image/jpeg",
+            ),
+        ]
+    )
+    print(response)
+    return response.text

@@ -147,3 +147,52 @@ document.getElementById("updateEbayListingButton").addEventListener("click", fun
         alert("An error occurred while updating eBay listing.");
     });
 });
+
+$(document).ready(function() {
+    $.ajax({
+        url: '/image-list',
+        type: 'GET',
+        success: function(images) {
+            var imageList = $('#imageList');
+            images.forEach(function(image) {
+                var imageElement = $('<div>', {class: 'image-item'});
+                imageElement.append($('<img>', {src: image.url, alt: image.name}));
+                imageElement.append($('<button>', {
+                    class: 'select-image',
+                    text: 'Select',
+                    'data-url': image.url
+                }));
+                imageList.append(imageElement);
+            });
+        },
+        error: function(error) {
+            console.log(error);
+        }
+    });
+});
+
+
+$(document).ready(function() {
+    $('#image-selection-form').on('submit', function(e) {
+        e.preventDefault();
+        var selectedImageUrl = $('input[name="selectedImage"]:checked').val();
+        if (selectedImageUrl) {
+            $.ajax({
+                url: '/your-server-endpoint', // 画像の URL を送信するサーバーサイドのエンドポイント
+                type: 'POST',
+                data: { imageUrl: selectedImageUrl },
+                success: function(response) {
+                    // 成功時の処理
+                    alert('Image selected successfully');
+                },
+                error: function(error) {
+                    // エラー処理
+                    alert('Error selecting image');
+                }
+            });
+        } else {
+            alert('Please select an image');
+        }
+    });
+});
+
