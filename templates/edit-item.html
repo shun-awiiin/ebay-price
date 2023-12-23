@@ -31,6 +31,47 @@
                     <h4>Item Specifics</h4>
                     <textarea id="editItemSpecifics" name="item_specifics" class="form-control auto-resize">{{ item.get('Generate_ItemSpecifics', '') }}</textarea>
                 </div>
+                <!-- 画像選択エリア -->
+                <!-- 既存のすべての画像URLを表示 -->
+                <div class="existing-images">
+                    <h4>Current Images</h4>
+                    {% if item.get('PictureURL') %}
+                        <form id="image-selection-form">
+                            {% if item.get('PictureURL') is iterable and not item.get('PictureURL') is string %}
+                                <!-- PictureURLがリストの場合 -->
+                                <div class="row">
+                                    {% for url in item.get('PictureURL') %}
+                                        <div class="col-md-4">
+                                            <div class="image-container">
+                                                <img src="{{ url }}" alt="Image" class="img-fluid">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="radio" name="selectedImage" value="{{ url }}" id="image{{ loop.index }}">
+                                                    <label class="form-check-label" for="image{{ loop.index }}">{{ url }}</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% elif item.get('PictureURL') is string %}
+                                <!-- PictureURLが文字列の場合 -->
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="image-container">
+                                            <img src="{{ item.get('PictureURL') }}" alt="Image" class="img-fluid">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="selectedImage" value="{{ item.get('PictureURL') }}" id="image1">
+                                                <label class="form-check-label" for="image1">{{ item.get('PictureURL') }}</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endif %}
+                            <button type="submit" class="btn btn-primary mt-3">Submit Selected Image</button>
+                        </form>
+                    {% else %}
+                        <p>No images available.</p>
+                    {% endif %}
+                </div>
                 
             </div>
             <!-- プレビューエリア -->

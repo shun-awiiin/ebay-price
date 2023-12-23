@@ -28,6 +28,7 @@ from ebay_api import (
     background_remove,
     image_listing_update,
     get_item_img,
+    generate_text_using_gemini_api,
 )
 
 import json
@@ -46,6 +47,7 @@ from bs4 import BeautifulSoup
 import traceback
 import tempfile
 from google.cloud import storage
+import uuid
 
 
 secret_key = secrets.token_hex(16)
@@ -128,7 +130,7 @@ def update_ebay_data():
     # 現在の日時を取得
     current_time = datetime.utcnow()
 
-    end_time_to = current_time + timedelta(days=30)
+    end_time_to = current_time + timedelta(days=31)
 
     entries_per_page = 200  # eBayの最大取得件数に応じて設定
     page_number = 1
@@ -598,6 +600,35 @@ def update_ebay_img_listing():
         return jsonify({"success": True}), 200
     else:
         return jsonify({"success": False}), 500
+
+
+@app.route("/your-server-endpoint", methods=["POST"])
+def handle_image_upload():
+    image_url = request.form.get("imageUrl")
+    if not image_url:
+        return jsonify({"error": "No image URL provided"}), 400
+
+    # Google Cloud Storage に画像を保存
+    storage_client = storage.Client()
+    bucket = storage_client.bucket("ebayprice-405908.appspot.com")
+    blob = bucket.blob("images/" + str(uuid.uuid4()))
+
+    # 画像データのダウンロードとアップロード
+    blob.upload_from_string(requests.get(image_url).content, content_type="image/jpeg")
+
+    # 画像の gsutil URI を取得
+    gsutil_uri = f"gs://{bucket.name}/{blob.name}"
+
+    # 必要な処理を実行
+    text = generate_text_using_gemini_api(gsutil_uri)
+    # 例: URI をデータベースに保存
+    # Google Cloud Datastore にテキストを保存
+
+    # 応答を返す
+    return jsonify(
+        {"message": "Image uploaded and processed successfully", "text": text}
+    )
+    # return jsonify({"message": "Image uploaded successfully", "gsutil_uri": gsutil_uri})
 
 
 # リストedit fin--------------------------------------------------------------------------------------------------------
