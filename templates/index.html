@@ -1,174 +1,196 @@
 <!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="utf-8" />
-        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
-        <meta name="description" content="" />
-        <meta name="author" content="" />
-        <title>Dashboard</title>
-        <link href="https://cdn.jsdelivr.net/npm/simple-datatables@7.1.2/dist/style.min.css" rel="stylesheet" />
-        <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet" />
-        <script src="https://use.fontawesome.com/releases/v6.3.0/js/all.js" crossorigin="anonymous"></script>
-        <link href="https://cdn.jsdelivr.net/npm/intro.js/minified/introjs.min.css" rel="stylesheet">
+<html lang="ja">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <title>販売管理ダッシュボード</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/simple-datatables@7.1.2/dist/style.min.css" rel="stylesheet" />
+    <script src="https://use.fontawesome.com/releases/v6.3.0/js/all.js" crossorigin="anonymous"></script>
+    <style>
+        .sidebar {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 100;
+            padding: 48px 0 0;
+            box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+        }
+        .sidebar-sticky {
+            position: relative;
+            top: 0;
+            height: calc(100vh - 48px);
+            padding-top: .5rem;
+            overflow-x: hidden;
+            overflow-y: auto;
+        }
+        .navbar-brand {
+            padding-top: .75rem;
+            padding-bottom: .75rem;
+        }
+        .navbar .navbar-toggler {
+            top: .25rem;
+            right: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <header class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0 shadow">
+        <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3" href="#">販売管理システム</a>
+        <button class="navbar-toggler position-absolute d-md-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <input class="form-control form-control-dark w-100" type="text" placeholder="検索" aria-label="Search">
+        <div class="navbar-nav">
+            <div class="nav-item text-nowrap">
+                <a class="nav-link px-3" href="#">ログアウト</a>
+            </div>
+        </div>
+    </header>
 
-    </head>
-    <body class="sb-nav-fixed">
-        {% include 'navbar.html' %}
-        <div id="layoutSidenav">
-            {% include 'sidebar.html' %}
+    <div class="container-fluid">
+        <div class="row">
+            <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
+                <div class="position-sticky pt-3">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link active" aria-current="page" href="#">
+                                <i class="fas fa-home"></i> ダッシュボード
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#">
+                                <i class="fas fa-shopping-cart"></i> 注文
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#">
+                                <i class="fas fa-box"></i> 商品
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#">
+                                <i class="fas fa-chart-bar"></i> レポート
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#">
+                                <i class="fas fa-cog"></i> 設定
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
 
-            <div id="layoutSidenav_content">
-                <main>
-                    <div class="container-fluid px-4" data-intro="ここはダッシュボードです。重要な情報を一目で確認できます。">
-                        <h4 class="mt-4">Home</h4>
-                        <ol class="breadcrumb mb-4">
-                            <li class="breadcrumb-item active">Dashboard</li>
-                            <li class="breadcrumb-item active">eBay連携をする</li>
-                            <a href="{{ url_for('ebay_auth') }}" class="btn btn-primary">Connect to eBay</a> 
-                            <li class="breadcrumb-item">
-                                <button class="btn btn-info" onclick="startTutorial()">チュートリアルを開始する</button>
-                            </li>                                          
-                        </ol>
-                        <div class="row">
-                            <!-- ブログリンクカード -->
-                            <div class="col-xl-6 col-md-6">
-                                <div class="card mb-4">
-                                    <img src="https://ewmqoegsx4q.exactdn.com/wp-content/uploads/2023/11/%E3%80%90eBay%C3%97AI%E3%80%91%E3%82%82%E3%81%AF%E3%82%84%E9%9D%A9%E5%91%BD%EF%BC%81eBay%E5%87%BA%E5%93%81%E3%82%92%E3%82%B9%E3%83%9E%E3%83%9B%E3%81%A7%E7%B0%A1%E5%8D%98%E3%83%BB%E6%9C%80%E9%80%9F%E3%81%A7%E8%A1%8C%E3%81%86%E6%96%B9%E6%B3%95%EF%BC%81.png?strip=all&lossy=1&ssl=1" class="card-img-top" alt="ブログ画像">
-                                    <div class="card-body">
-                                        <h5 class="card-title">ブログ</h5>
-                                        <p class="card-text">最新の記事や情報をチェックしましょう。</p>
-                                        <a href="https://ebay-marketing-tool.com/ebay-ai-mobile-listing/" class="btn btn-primary" target="_blank">ブログを見る</a>
-                                    </div>
-                                </div>
-                            </div>
-                    
-                            <!-- YouTubeリンクカード -->
-                            <div class="col-xl-6 col-md-6">
-                                <div class="card mb-4">
-                                    <img src="https://select-awiiin.myshopify.com/cdn/shop/files/1.jpg?v=1695812362&width=1426" class="card-img-top" alt="YouTubeチャンネル画像">
-                                    <div class="card-body">
-                                        <h5 class="card-title">YouTubeチャンネル</h5>
-                                        <p class="card-text">最新のビデオやチュートリアルを見る。</p>
-                                        <a href="https://youtu.be/s8Lt5HbsN6U" class="btn btn-danger" target="_blank">YouTubeを見る</a>
-                                    </div>
-                                </div>
-                            </div>
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">ダッシュボード</h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <div class="btn-group me-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary">共有</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary">エクスポート</button>
                         </div>
-                        <h5 class="card-title">最新ブログ・YouTube</h5>
-                        <div class="container-fluid px-4">
-                            <div class="row">
-                                <!-- ブログコンテンツのコンテナ -->
-                                <div class="col-md-6" id="blog-container"></div>
-                                <!-- YouTubeコンテンツのコンテナ -->
-                                <div class="col-md-6" id="youtube-container"></div>
-                            </div>
-                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle">
+                            <i class="fas fa-calendar"></i> 今週
+                        </button>
+                    </div>
+                </div>
 
-                        <div class="row">
-                            <div class="col-xl-3 col-md-6">
-                                <div class="card bg-primary text-white mb-4" data-intro="このカードは重要な機能を紹介しています。">
-                                    <div class="card-body">使い方を見る</div>
-                                    <div class="card-footer d-flex align-items-center justify-content-between">
-                                        <a class="small text-white stretched-link" href="#">View Details</a>
-                                        <div class="small text-white"><i class="fas fa-angle-right"></i></div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-xl-3 col-md-6">
-                                <div class="card bg-warning text-white mb-4">
-                                    <div class="card-body">Warning</div>
-                                    <div class="card-footer d-flex align-items-center justify-content-between">
-                                        <a class="small text-white stretched-link" href="#">View Details</a>
-                                        <div class="small text-white"><i class="fas fa-angle-right"></i></div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-xl-3 col-md-6">
-                                <div class="card bg-success text-white mb-4">
-                                    <div class="card-body">Success Card 実績</div>
-                                    <div class="card-footer d-flex align-items-center justify-content-between">
-                                        <a class="small text-white stretched-link" href="#">View Details</a>
-                                        <div class="small text-white"><i class="fas fa-angle-right"></i></div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-xl-3 col-md-6">
-                                <div class="card bg-danger text-white mb-4">
-                                    <div class="card-body">Danger Card  Vero・パテントトロール</div>
-                                    <div class="card-footer d-flex align-items-center justify-content-between">
-                                        <a class="small text-white stretched-link" href="#">View Details</a>
-                                        <div class="small text-white"><i class="fas fa-angle-right"></i></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-xl-6">
-                                <div class="card mb-4" data-intro="ここではデータを視覚的に表示するチャートを見ることができます。">
-                                    <div class="card-header">
-                                        <i class="fas fa-chart-area me-1"></i>
-                                        Area Chart Example
-                                    </div>
-                                    <div class="card-body"><canvas id="myAreaChart" width="100%" height="40"></canvas></div>
-                                </div>
-                            </div>
-                            <div class="col-xl-6">
-                                <div class="card mb-4" data-intro="このテーブルでは、リストの詳細を確認できます。">
-                                    <div class="card-header">
-                                        <i class="fas fa-chart-bar me-1"></i>
-                                        Bar Chart Example
-                                    </div>
-                                    <div class="card-body"><canvas id="myBarChart" width="100%" height="40"></canvas></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="card mb-4">
-                            <div class="card-header">
-                                <i class="fas fa-table me-1"></i>
-                                DataTable Example
-                            </div>
+                <div class="row">
+                    <div class="col-md-3 mb-4">
+                        <div class="card text-white bg-primary">
                             <div class="card-body">
-                                <table id="datatablesSimple">
-                                    <thead>
-                                        <tr>
-                                            <th>タイトル</th>
-                                            <th>価格</th>
-                                            <th>リンク</th>
-                                            <th>画像</th>
-                                        </tr>
-                                    </thead>
-                                    <tfoot>
-                                        <tr>
-                                            <th>タイトル</th>
-                                            <th>価格</th>
-                                            <th>リンク</th>
-                                            <th>画像</th>
-                                        </tr>
-                                    </tfoot>
-                                    <tbody>
-                                        {% for item in listings %}
-                                        <tr>
-                                            <td>{{ item.get('Title') }}</td>
-                                            <td>${{ item.get('Price') }}</td>
-                                
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
+                                <h5 class="card-title">総売上</h5>
+                                <p class="card-text display-6">¥1,234,567</p>
+                                <p class="card-text"><small>前月比 +5.2%</small></p>
                             </div>
                         </div>
                     </div>
-                </main>
-                {% include 'footer.html' %}
-            </div>
+                    <div class="col-md-3 mb-4">
+                        <div class="card text-white bg-success">
+                            <div class="card-body">
+                                <h5 class="card-title">総利益</h5>
+                                <p class="card-text display-6">¥345,678</p>
+                                <p class="card-text"><small>前月比 +3.8%</small></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-4">
+                        <div class="card text-white bg-info">
+                            <div class="card-body">
+                                <h5 class="card-title">総出品数</h5>
+                                <p class="card-text display-6">1,234</p>
+                                <p class="card-text"><small>前月比 +12件</small></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-4">
+                        <div class="card text-white bg-warning">
+                            <div class="card-body">
+                                <h5 class="card-title">未発送件数</h5>
+                                <p class="card-text display-6">23</p>
+                                <p class="card-text"><small>24時間以内 15件</small></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                月間売上推移
+                            </div>
+                            <div class="card-body">
+                                <canvas id="salesChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                プラットフォーム別売上
+                            </div>
+                            <div class="card-body">
+                                <canvas id="platformChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-table me-1"></i> 最近の取引
+                    </div>
+                    <div class="card-body">
+                        <table id="recentTransactionsTable" class="table table-striped table-sm">
+                            <thead>
+                                <tr>
+                                    <th>日付</th>
+                                    <th>プラットフォーム</th>
+                                    <th>商品名</th>
+                                    <th>売上</th>
+                                    <th>仕入れ額</th>
+                                    <th>送料</th>
+                                    <th>利益</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- ここにデータベースから取得した取引データを挿入 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
         </div>
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
-        <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4"></script>
-        <script src="https://cdn.jsdelivr.net/npm/intro.js/minified/intro.min.js"></script>
-        <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
-        <script src="{{ url_for('static', filename='js/chart-area-demo.js') }}"></script>
-        <script src="{{ url_for('static', filename='js/chart-bar-demo.js') }}"></script>
-        <script src="https://cdn.jsdelivr.net/npm/simple-datatables@7.1.2/dist/umd/simple-datatables.min.js" crossorigin="anonymous"></script>
-    </body>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/simple-datatables@7.1.2/dist/umd/simple-datatables.min.js"></script>
+    <script>
+        // ここにChartJSとDataTablesの初期化コードを追加
+    </script>
+</body>
 </html>

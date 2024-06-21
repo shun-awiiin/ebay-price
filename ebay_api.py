@@ -692,3 +692,66 @@ def generate_text_using_gemini_api(image_uri: str) -> str:
     )
     print(response)
     return response.text
+
+import requests
+
+def get_financial_data(auth_token, start_date=None, end_date=None, marketplace_id="EBAY_US", limit=100):
+    """
+    eBayの財務データを取得する関数
+
+    :param auth_token: eBay OAuth トークン
+    :param start_date: データ取得開始日 (デフォルト: 30日前)
+    :param end_date: データ取得終了日 (デフォルト: 今日)
+    :param marketplace_id: eBayのマーケットプレイスID
+    :param limit: 1回のリクエストで取得するトランザクション数 (最大100)
+    :return: 財務データのリスト
+    """
+    url = "https://api.ebay.com/sell/finances/v1/transaction"
+    
+    # デフォルトの日付設定
+    if end_date is None:
+        end_date = datetime.utcnow()
+    else:
+        end_date = datetime.fromisoformat(end_date.rstrip('Z'))
+    
+    if start_date is None:
+        start_date = end_date - timedelta(days=30)
+    else:
+        start_date = datetime.fromisoformat(start_date.rstrip('Z'))
+
+    headers = {
+        "Authorization": f"Bearer {auth_token}",
+        "Content-Type": "application/json",
+        "X-EBAY-C-MARKETPLACE-ID": marketplace_id
+    }
+
+    params = {
+        "filter": f"transactionDate:[{start_date.isoformat()}Z..{end_date.isoformat()}Z]",
+        "limit": limit
+    }
+
+    all_transactions = []
+    
+    while True:
+        try:
+            response = requests.get(url, headers=headers, params=params)
+            response.raise_for_status()  # エラーチェック
+            data = response.json()
+            
+            transactions = data.get('transactions', [])
+            all_transactions.extend(transactions)
+            
+            # 次のページがあるか確認
+            next_page = data.get('next')
+            if not next_page:
+                break
+            
+            # 次のページのURLを設定
+            url = next_page
+            params = {}  # next URLにはパラメータが含まれているので、paramsをクリア
+        
+        except requests.RequestException as e:
+            print(f"エラーが発生しました: {e}")
+            break
+
+    return all_transactions
